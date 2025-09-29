@@ -1,41 +1,29 @@
 # Student Name Learning Game 🎓📸
 
-A comprehensive educational tool designed to help teachers learn student names through interactive photo-based quizzes with voice recognition, progressive hints, and intelligent difficulty tracking.
+A simple, clean educational tool designed to help teachers learn student names through photo-based practice with text-to-speech feedback.
 
 ## 🌟 Features
 
 ### Core Functionality
 - **Random Student Photos**: Displays student photos from organized folders
-- **Voice Recognition**: Speak student names aloud for hands-free learning
-- **Text-to-Speech**: Provides audio feedback and spoken hints
-- **Progressive Hints**: Gradual revelation system (first letter → syllables → full name)
-- **Fuzzy Matching**: Intelligent name matching that handles variations and pronunciations
-
-### Advanced Learning Features
-- **Session Management**: Organized learning sessions with randomization
-- **Review Mode**: Speed-controlled review of difficult students
-- **Performance Tracking**: Tracks accuracy, attempts, and learning progress
-- **Difficulty Analysis**: Identifies challenging names and suggests memory strategies
-- **Smart Hints**: Context-aware hints based on student performance
+- **Text Input**: Type student names with immediate feedback
+- **Text-to-Speech**: Provides audio feedback when you get names right
+- **Simple Hints**: First letter hints when you're stuck
+- **Streak Tracking**: Shows your current correct streak
 
 ### User Experience
-- **Modern UI**: Clean, professional interface with intuitive controls
-- **Responsive Design**: Automatically sized photos and adaptive layout
-- **Visual Feedback**: Clear success/failure indicators and progress tracking
-- **Pause & Resume**: Flexible session control for busy teaching schedules
+- **Clean Interface**: Minimal, distraction-free design
+- **Easy Photo Management**: Load different photo folders via File menu
+- **Immediate Feedback**: Know right away if you got the name correct
+- **Skip Option**: Move on when you're truly stuck
 
 ## 🚀 Quick Start
 
-### Option 1: Run the Executable (Recommended)
-1. Download the latest release from the `dist/` folder
-2. Double-click `StudentNameLearningGame` (Linux) or run `./install.sh`
-3. The app launches immediately - no installation required!
-
-### Option 2: Run from Source
+### Run the Application
 ```bash
 # Clone the repository
-git clone <your-repo-url>
-cd TCE318P_Photos
+git clone https://github.com/OhioMathTeacher/student-name-learning-game.git
+cd student-name-learning-game
 
 # Set up virtual environment
 python3 -m venv .venv
@@ -51,158 +39,83 @@ python student_name_game.py
 ## 📁 Project Structure
 
 ```
-TCE318P_Photos/
+student-name-learning-game/
 ├── student_name_game.py          # Main application
-├── build_executable.py           # Executable build script
-├── requirements.txt              # Runtime dependencies
-├── requirements_build.txt        # Build dependencies
-├── Section A/                    # Student photos folder
-│   ├── Brown_Emma.jpeg
-│   ├── DeVincentis_Celeste.jpeg
-│   └── ...
-├── Section B/                    # Additional student photos
-│   ├── Ashkettle_Julia.jpeg
-│   ├── Burzynski_Ethan.jpeg
-│   └── ...
-├── dist/                         # Built executable
-│   ├── StudentNameLearningGame
-│   ├── install.sh
-│   └── README.txt
-└── build/                        # Build artifacts
+├── student_name_game_simple.py   # Backup of simple version
+├── requirements.txt              # Dependencies
+├── README.md                     # This file
+└── app_icon.png                  # Application icon
 ```
 
 ## 🎯 How to Use
 
 ### Basic Operation
-1. **Start a Session**: Click "Start New Session" to begin
-2. **View Photos**: Student photos appear automatically
-3. **Enter Names**: Type or speak the student's name
-4. **Get Hints**: Click "Give me a hint!" if you're stuck
-5. **Track Progress**: Monitor your accuracy and learning curve
+1. **Load Photos**: Use File → Change Photo Folder to select your student photos
+2. **View Photos**: Student photos appear one at a time
+3. **Enter Names**: Type the student's first name in the text box
+4. **Get Feedback**: The app tells you if you're correct and speaks the name
+5. **Use Hints**: Click "Get Hint" for the first letter of the name
+6. **Track Progress**: Your current streak is displayed at the top
 
-### Voice Recognition
-- Click "🎤 Voice Input" to activate microphone
-- Speak clearly and wait for recognition
-- The recognized text appears in the input field
-- Submit with Enter or click "Submit"
-
-### Review Mode
-- Access previously seen students for reinforcement
-- Adjust speed from 1-10 seconds per photo
-- Pause anytime to focus on difficult names
-- Skip or return to specific students
-
-### Performance Analytics
-- View session statistics and overall progress
-- Identify students requiring more practice
-- Get memory strategy suggestions for difficult names
-- Track improvement over multiple sessions
+### Photo Organization
+- Organize photos in folders (e.g., "Section A", "Section B")
+- Name photos as `LastName_FirstName.jpg` or `FirstName_LastName.jpg`
+- The app will extract the first name automatically
+- Supported formats: JPG, JPEG, PNG, GIF, BMP
 
 ## 🛠️ Technical Requirements
 
-### Runtime Dependencies
+### Dependencies
 - Python 3.8+
-- tkinter (GUI framework)
-- Pillow 9.0.0+ (Image processing)
-- speech_recognition 3.8.1+ (Voice input)
-- pyttsx3 2.90+ (Text-to-speech)
-- pyaudio 0.2.11+ (Microphone access)
+- tkinter (GUI framework - usually included with Python)
+- Pillow (Image processing)
+- pyttsx3 (Text-to-speech)
 
 ### System Requirements
-- **Linux**: Ubuntu/Debian with ALSA audio support
-- **Audio**: Microphone for voice recognition
-- **Display**: Minimum 1024x768 resolution
-
-### Build Dependencies (for creating executables)
-- PyInstaller 5.0.0+
-- All runtime dependencies
-
-## 🔧 Building Your Own Executable
-
-```bash
-# Install build dependencies
-pip install -r requirements_build.txt
-
-# Run the automated build script
-python build_executable.py
-
-# Find your executable in the dist/ folder
-```
-
-The build process:
-- Creates a standalone executable with embedded photos
-- Generates installation scripts
-- Bundles all dependencies (no Python installation required)
-- Results in a ~52MB portable application
+- **Cross-platform**: Windows, macOS, or Linux
+- **Display**: Minimum 800x600 resolution
+- **Audio**: Speakers or headphones for text-to-speech feedback
 
 ## 🎨 Customization
 
 ### Adding New Students
-1. Add photos to `Section A/` or `Section B/` folders
-2. Use format: `LastName_FirstName.jpeg`
-3. Photos are automatically resized and cropped to squares
-4. Restart the application to load new photos
+1. Create a folder with your student photos
+2. Name photos as `LastName_FirstName.jpg` or similar
+3. Use File → Change Photo Folder to select the new folder
+4. The app automatically loads all images from the selected folder
 
-### Modifying Difficulty
-Edit these variables in `student_name_game.py`:
-- `SESSION_SIZE`: Number of students per session (default: 10)
-- `REVIEW_SPEED`: Default review speed in seconds (default: 3)
-- Voice recognition timeout and phrase time limits
-
-### UI Customization
-The app uses a modern color scheme:
-- Primary: #2C3E50 (dark blue-gray)
-- Secondary: #3498DB (bright blue)  
-- Success: #27AE60 (green)
-- Warning: #F39C12 (orange)
-- Error: #E74C3C (red)
+### Photo Formats
+- Supported: JPG, JPEG, PNG, GIF, BMP
+- Photos are automatically resized to fit the display
+- No specific resolution requirements
 
 ## 🔒 Privacy & Security
 
-This is a **private repository** containing student photos. Please:
-- ✅ Keep repository private at all times
-- ✅ Only share with trusted educational colleagues
+This tool is designed for educational use with student photos. Please:
 - ✅ Follow your institution's privacy policies
-- ✅ Use secure authentication for GitHub access
-- ❌ Never make this repository public
-- ❌ Don't share executables containing student photos publicly
+- ✅ Keep student photos secure
+- ✅ Only use photos you have permission to use
+- ❌ Don't share student photos without proper authorization
 
 ## 🐛 Troubleshooting
 
-### Audio Issues
-- **Linux**: Install `sudo apt install portaudio19-dev python3-dev`
-- **ALSA Warnings**: Harmless system messages, functionality unaffected
-- **No Microphone**: Voice input gracefully disabled, typing still works
-
-### Photo Issues
-- **Photos Not Loading**: Check file permissions and formats (JPEG recommended)
-- **Sizing Problems**: Photos automatically cropped to squares and resized
-- **New Photos Not Appearing**: Restart application after adding files
-
-### Performance Issues  
-- **Slow Loading**: Large photo files may cause delays during startup
-- **Memory Usage**: ~50MB+ depending on number of photos loaded
-- **Voice Recognition Lag**: Normal 1-2 second processing time
+### Common Issues
+- **Photos Not Loading**: Check that photos are in supported formats (JPG, PNG, etc.)
+- **No Text-to-Speech**: Audio drivers may need updating, but the app works fine without sound
+- **App Slow to Start**: Large photo folders may take a moment to load initially
 
 ## 🤝 Contributing
 
-Since this is a private educational tool:
-1. Make changes in feature branches
-2. Test thoroughly with sample data
-3. Document any new features or changes
-4. Respect student privacy in all modifications
+This is a simple educational tool. Feel free to:
+1. Fork the repository
+2. Make improvements
+3. Submit pull requests
+4. Report issues or suggest features
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- Built with Python and tkinter for cross-platform compatibility
-- Uses Google Speech Recognition for voice input
-- Powered by open-source libraries and educational best practices
-- Designed specifically for classroom environments
-
 ---
 
-**🎓 Happy Teaching!** This tool is designed to make learning student names enjoyable and efficient. Your students will appreciate the personal connection that comes with you knowing their names quickly and confidently.
+**🎓 Happy Teaching!** This simple tool helps you learn student names quickly and efficiently.
