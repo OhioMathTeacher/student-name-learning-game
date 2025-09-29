@@ -176,3 +176,5 @@ xref-*.html
 
 # Application specific
 app_icon.ico
+*.dmg
+*.app
