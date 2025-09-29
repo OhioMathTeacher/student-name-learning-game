@@ -31,7 +31,7 @@ class StudentNameGame:
         self.root = root
         self.root.title("Student Name Learning Game")
         self.root.geometry("1000x1050")  # Taller to show full image initially
-        self.root.configure(bg='#f0f0f0')
+        self.root.configure(bg='#2C3E50')  # Dark blue-grey background
         
         # Initialize variables
         self.photos_dir = os.path.dirname(os.path.abspath(__file__))
@@ -87,47 +87,108 @@ class StudentNameGame:
         
         # Auto-start the first session
         self.root.after(500, self.auto_start_session)  # Small delay to let GUI load
-    
-    def load_students(self):
-        """Load student photos and parse names from filenames"""
-        for section in ["Section A", "Section B"]:
-            section_path = os.path.join(self.photos_dir, section)
-            if os.path.exists(section_path):
-                for filename in os.listdir(section_path):
-                    if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                        # Parse name from filename (Last_First.jpeg format)
-                        name_part = os.path.splitext(filename)[0]
-                        if '_' in name_part:
-                            last_name, first_name = name_part.split('_', 1)
-                            full_path = os.path.join(section_path, filename)
-                            self.students[section].append({
-                                'first_name': first_name,
-                                'last_name': last_name,
-                                'full_name': f"{first_name} {last_name}",
-                                'photo_path': full_path,
-                                'section': section
-                            })
         
-        print(f"Loaded {len(self.students['Section A'])} students from Section A")
-        print(f"Loaded {len(self.students['Section B'])} students from Section B")
+        # Start button color monitoring
+        self.monitor_button_colors()
+        
+        # Start button color monitoring
+        self.monitor_button_colors()
     
-    def create_widgets(self):
+    def setup_image_folder(self):
+        """Setup image folder - load from config or ask user to select"""
+        config_path = get_config_path()
+        
+        # Try to load saved folder path
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    saved_folder = config.get('image_folder')
+                    
+                if saved_folder and os.path.exists(saved_folder):
+                    # Ask if user wants to use the same folder
+                    use_saved = messagebox.askyesno(
+                        "Use Previous Folder?", 
+                        f"Use the same photo folder as last time?\n\n{saved_folder}"
+                    )
+                    if use_saved:
+                        self.image_folder = saved_folder
+                        return True
+            except:
+                pass
+        
+        # Ask user to select folder
+        messagebox.showinfo(
+            "Select Photo Folder", 
+            "Please select the folder containing your student photos.\n\n" +
+            "Photos should be named: LastName_FirstName.jpg"
+        )
+        
+        folder = filedialog.askdirectory(
+            title="Select folder containing student photos"
+        )
+        
+        if not folder:
+            return False
+            
+        self.image_folder = folder
+        
+        # Save folder path to config
+        try:
+            config = {'image_folder': folder}
+            with open(config_path, 'w') as f:
+                json.dump(config, f)
+        except:
+            pass  # Not critical if we can't save config
+            
+        return True
+    
+    def load_images(self):
+        """Load all student images from the selected folder"""
+        self.students = []
+        
+        if not self.image_folder or not os.path.exists(self.image_folder):
+            return
+            
+        for filename in os.listdir(self.image_folder):
+            if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                # Extract name from filename (remove extension)
+                name_part = os.path.splitext(filename)[0]
+                
+                # Split by underscore and format as "First Last"
+                if '_' in name_part:
+                    parts = name_part.split('_', 1)
+                    if len(parts) == 2:
+                        last_name, first_name = parts
+                        display_name = f"{first_name} {last_name}"
+                    else:
+                        display_name = name_part.replace('_', ' ')
+                else:
+                    display_name = name_part.replace('_', ' ')
+                
+                image_path = os.path.join(self.image_folder, filename)
+                self.students.append({
+                    'name': display_name,
+                    'image_path': image_path
+                })
+        
+        print(f"Loaded {len(self.students)} student images from {self.image_folder}")    def create_widgets(self):
         """Create the main GUI elements"""
         # Title
         title_label = tk.Label(
             self.root, 
             text="Student Name Learning Game", 
             font=("Arial", 20, "bold"),
-            bg='#f0f0f0',
-            fg='#333'
+            bg='#2C3E50',  # Dark background
+            fg='#ECF0F1'   # Light text
         )
         title_label.pack(pady=10)
         
         # Section selection frame
-        section_frame = tk.Frame(self.root, bg='#f0f0f0')
+        section_frame = tk.Frame(self.root, bg='#2C3E50')
         section_frame.pack(pady=10)
         
-        tk.Label(section_frame, text="Select Section:", font=("Arial", 12), bg='#f0f0f0').pack(side=tk.LEFT, padx=5)
+        tk.Label(section_frame, text="Select Section:", font=("Arial", 12), bg='#2C3E50', fg='#ECF0F1').pack(side=tk.LEFT, padx=5)
         
         self.section_var = tk.StringVar(value="Both")
         sections = ["Section A", "Section B", "Both"]
@@ -139,13 +200,17 @@ class StudentNameGame:
                 variable=self.section_var,
                 value=section,
                 font=("Arial", 10),
-                bg='#f0f0f0',
+                bg='#2C3E50',      # Dark background
+                fg='#ECF0F1',      # Light text
+                selectcolor='#34495E',  # Dark selection color
+                activebackground='#34495E',
+                activeforeground='#ECF0F1',
                 command=self.on_section_change
             )
             rb.pack(side=tk.LEFT, padx=10)
         
         # Mode selection frame
-        mode_frame = tk.Frame(self.root, bg='#f0f0f0')
+        mode_frame = tk.Frame(self.root, bg='#2C3E50')
         mode_frame.pack(pady=5)
         
         # Review mode toggle
@@ -156,6 +221,14 @@ class StudentNameGame:
             font=("Arial", 11, "bold"),
             bg='#9C27B0',
             fg='white',
+            activebackground='#7B1FA2',
+            activeforeground='white',
+            disabledforeground='white',
+            relief='raised',
+            bd=2,
+            highlightthickness=0,
+            highlightbackground='#9C27B0',
+            highlightcolor='#9C27B0',
             padx=15,
             pady=3
         )
@@ -169,16 +242,24 @@ class StudentNameGame:
             font=("Arial", 11),
             bg='#FF9800',
             fg='white',
+            activebackground='#F57C00',
+            activeforeground='white',
+            disabledforeground='white',
+            relief='raised',
+            bd=2,
+            highlightthickness=0,
+            highlightbackground='#FF9800',
+            highlightcolor='#FF9800',
             padx=12,
             pady=3
         )
         # Don't pack initially - will show in review mode
         
         # Speed control frame
-        speed_frame = tk.Frame(mode_frame, bg='#f0f0f0')
+        speed_frame = tk.Frame(mode_frame, bg='#2C3E50')
         speed_frame.pack(side=tk.LEFT, padx=10)
         
-        tk.Label(speed_frame, text="Review Speed:", font=("Arial", 9), bg='#f0f0f0').pack(side=tk.LEFT)
+        tk.Label(speed_frame, text="Review Speed:", font=("Arial", 9), bg='#2C3E50', fg='#ECF0F1').pack(side=tk.LEFT)
         self.speed_var = tk.DoubleVar(value=3.0)
         self.speed_scale = tk.Scale(
             speed_frame,
@@ -189,28 +270,31 @@ class StudentNameGame:
             variable=self.speed_var,
             command=self.on_speed_change,
             length=100,
-            bg='#f0f0f0'
+            bg='#34495E',      # Darker background for scale
+            fg='#ECF0F1',      # Light text
+            activebackground='#3498DB',
+            troughcolor='#2C3E50'
         )
         self.speed_scale.pack(side=tk.LEFT, padx=5)
-        tk.Label(speed_frame, text="sec", font=("Arial", 9), bg='#f0f0f0').pack(side=tk.LEFT)
+        tk.Label(speed_frame, text="sec", font=("Arial", 9), bg='#2C3E50', fg='#ECF0F1').pack(side=tk.LEFT)
         
         # Photo display
-        self.photo_frame = tk.Frame(self.root, bg='#f0f0f0', relief='raised', bd=2)
+        self.photo_frame = tk.Frame(self.root, bg='#34495E', relief='raised', bd=2)
         self.photo_frame.pack(pady=15, padx=40, fill=tk.BOTH, expand=True)  # Larger area
         
         self.photo_label = tk.Label(
             self.photo_frame,
-            text="Click 'New Student' to begin!",
+            text="Loading students...",
             font=("Arial", 18),
-            bg='white',
-            fg='#666',
+            bg='#34495E',      # Dark background
+            fg='#ECF0F1',      # Light text
             width=40,  # Wider for better photo display
             height=30  # Much taller for better photo viewing
         )
         self.photo_label.pack(expand=True, fill=tk.BOTH, padx=15, pady=15)  # More padding
         
         # Control buttons frame
-        self.controls_frame = tk.Frame(self.root, bg='#f0f0f0')
+        self.controls_frame = tk.Frame(self.root, bg='#2C3E50')
         self.controls_frame.pack(pady=10)
         
         # Voice input button
@@ -222,39 +306,61 @@ class StudentNameGame:
                 font=("Arial", 12),
                 bg='#2196F3',
                 fg='white',
+                activebackground='#1976D2',
+                activeforeground='white',
+                disabledforeground='white',
+                relief='raised',
+                bd=2,
+                highlightthickness=0,
+                highlightbackground='#2196F3',
+                highlightcolor='#2196F3',
                 padx=15,
                 pady=5
             )
             self.voice_button.pack(side=tk.LEFT, padx=5)
         
         # Text input frame
-        self.input_frame = tk.Frame(self.root, bg='#f0f0f0')
+        self.input_frame = tk.Frame(self.root, bg='#2C3E50')
         self.input_frame.pack(pady=5)
         
-        tk.Label(self.input_frame, text="Or type the name:", font=("Arial", 10), bg='#f0f0f0').pack()
+        tk.Label(self.input_frame, text="Or type the name:", font=("Arial", 10), bg='#2C3E50', fg='#ECF0F1').pack()
         
-        self.name_entry = tk.Entry(self.input_frame, font=("Arial", 12), width=30)
+        self.name_entry = tk.Entry(
+            self.input_frame, 
+            font=("Arial", 12), 
+            width=30,
+            bg='#ECF0F1',      # Light background for input
+            fg='#2C3E50',      # Dark text
+            insertbackground='#2C3E50',  # Dark cursor
+            relief='flat',
+            bd=2
+        )
         self.name_entry.pack(pady=5)
         self.name_entry.bind('<Return>', self.check_name_entry)
+        self.name_entry.bind('<FocusIn>', self.on_text_focus)  # Add focus binding
         
         # Submit and hint buttons
-        self.button_frame = tk.Frame(self.root, bg='#f0f0f0')
+        self.button_frame = tk.Frame(self.root, bg='#2C3E50')
         self.button_frame.pack(pady=5)
         
-        # Submit and hint buttons
-        self.button_frame = tk.Frame(self.root, bg='#f0f0f0')
-        self.button_frame.pack(pady=5)
-        
-        submit_button = tk.Button(
+        self.submit_button = tk.Button(
             self.button_frame,
             text="Submit",
             command=self.check_name_entry,
             font=("Arial", 10),
             bg='#FF9800',
             fg='white',
+            activebackground='#F57C00',
+            activeforeground='white',
+            disabledforeground='white',
+            relief='raised',
+            bd=2,
+            highlightthickness=0,
+            highlightbackground='#FF9800',
+            highlightcolor='#FF9800',
             padx=15
         )
-        submit_button.pack(side=tk.LEFT, padx=5)
+        self.submit_button.pack(side=tk.LEFT, padx=5)
         
         self.hint_button = tk.Button(
             self.button_frame,
@@ -263,6 +369,14 @@ class StudentNameGame:
             font=("Arial", 10),
             bg='#9C27B0',
             fg='white',
+            activebackground='#7B1FA2',
+            activeforeground='white',
+            disabledforeground='white',
+            relief='raised',
+            bd=2,
+            highlightthickness=0,
+            highlightbackground='#9C27B0',
+            highlightcolor='#9C27B0',
             padx=15
         )
         self.hint_button.pack(side=tk.LEFT, padx=5)
@@ -275,6 +389,14 @@ class StudentNameGame:
             font=("Arial", 10),
             bg='#607D8B',
             fg='white',
+            activebackground='#455A64',
+            activeforeground='white',
+            disabledforeground='white',
+            relief='raised',
+            bd=2,
+            highlightthickness=0,
+            highlightbackground='#607D8B',
+            highlightcolor='#607D8B',
             padx=12
         )
         self.analysis_button.pack(side=tk.LEFT, padx=5)
@@ -284,18 +406,18 @@ class StudentNameGame:
             self.root,
             text="Ready to start!",
             font=("Arial", 11),
-            bg='#f0f0f0',
-            fg='#666'
+            bg='#2C3E50',
+            fg='#ECF0F1'       # Light text
         )
         self.status_label.pack(pady=5)
         
         # Progress label
         self.progress_label = tk.Label(
             self.root,
-            text="Click 'New Student' to begin your session!",
+            text="Students loading automatically!",
             font=("Arial", 10, "bold"),
-            bg='#f0f0f0',
-            fg='#2196F3'
+            bg='#2C3E50',
+            fg='#3498DB'       # Bright blue for progress
         )
         self.progress_label.pack(pady=5)
         
@@ -313,8 +435,8 @@ Instructions:
             self.root,
             text=instructions,
             font=("Arial", 9),
-            bg='#f0f0f0',
-            fg='#555',
+            bg='#2C3E50',
+            fg='#BDC3C7',      # Light grey text for instructions
             justify=tk.LEFT
         )
         self.instructions_label.pack(pady=5)
@@ -332,6 +454,48 @@ Instructions:
         if messages:
             messagebox.showwarning("Missing Dependencies", "\n\n".join(messages))
     
+    def on_text_focus(self, event=None):
+        """Handle when text entry gets focus - maintain button styling"""
+        # Force buttons to maintain their styling with explicit references
+        self.root.after(10, self.reset_button_colors)  # Small delay to ensure focus is processed
+    
+    def reset_button_colors(self):
+        """Reset all button colors to their proper values"""
+        try:
+            # Reset submit button
+            if hasattr(self, 'submit_button'):
+                self.submit_button.config(bg='#FF9800', fg='white', text="Submit")
+            
+            # Reset hint button  
+            if hasattr(self, 'hint_button'):
+                self.hint_button.config(bg='#9C27B0', fg='white', text="Give Hint")
+            
+            # Reset analysis button
+            if hasattr(self, 'analysis_button'):
+                self.analysis_button.config(bg='#607D8B', fg='white', text="📊 Analysis")
+            
+            # Reset voice button
+            if hasattr(self, 'voice_button'):
+                self.voice_button.config(bg='#2196F3', fg='white', text="🎤 Say Name")
+            
+            # Reset review button
+            if hasattr(self, 'review_button'):
+                if self.review_mode:
+                    self.review_button.config(bg='#f44336', fg='white', text="🎯 Stop Review Mode")
+                else:
+                    self.review_button.config(bg='#9C27B0', fg='white', text="🔄 Start Review Mode")
+        except Exception as e:
+            print(f"Error resetting button colors: {e}")
+    
+    def monitor_button_colors(self):
+        """Continuously monitor and fix button colors"""
+        try:
+            self.reset_button_colors()
+        except:
+            pass
+        # Check again in 100ms
+        self.root.after(100, self.monitor_button_colors)
+
     def auto_start_session(self):
         """Automatically start a session when the app loads"""
         if self.start_new_session():
@@ -350,7 +514,7 @@ Instructions:
     
     def start_review_mode(self):
         """Start review mode - shows names with photos automatically"""
-        self.review_button.config(text="🎯 Stop Review Mode", bg='#f44336')
+        self.review_button.config(text="🎯 Stop Review Mode", bg='#f44336', fg='white', activebackground='#d32f2f', activeforeground='white')
         self.review_paused = False
         
         # Show pause button
@@ -370,7 +534,7 @@ Instructions:
     
     def stop_review_mode(self):
         """Stop review mode and return to quiz mode"""
-        self.review_button.config(text="🔄 Start Review Mode", bg='#9C27B0')
+        self.review_button.config(text="🔄 Start Review Mode", bg='#9C27B0', fg='white', activebackground='#7B1FA2', activeforeground='white')
         self.review_paused = False
         
         # Hide pause button
@@ -408,7 +572,7 @@ Instructions:
             if self.review_timer:
                 self.root.after_cancel(self.review_timer)
                 self.review_timer = None
-            self.pause_button.config(text="▶️ Resume", bg='#4CAF50')
+            self.pause_button.config(text="▶️ Resume", bg='#4CAF50', fg='white', activebackground='#388E3C', activeforeground='white')
             # Update status to show paused
             current_name = self.current_student['full_name'] if self.current_student else "Unknown"
             current_section = self.current_student['section'] if self.current_student else "Unknown"
@@ -419,14 +583,14 @@ Instructions:
             )
         else:
             # Resume - update button and schedule next advance
-            self.pause_button.config(text="⏸️ Pause", bg='#FF9800')
+            self.pause_button.config(text="⏸️ Pause", bg='#FF9800', fg='white', activebackground='#F57C00', activeforeground='white')
             # Show current student name normally
             if self.current_student:
                 student_name = self.current_student['full_name']
                 student_section = self.current_student['section']
                 self.status_label.config(
                     text=f"📖 {student_name} ({student_section})",
-                    fg='#2196F3',
+                    fg='#1ABC9C',  # Bright cyan for dark theme
                     font=("Arial", 14, "bold")
                 )
             # Schedule next advance
@@ -476,7 +640,7 @@ Instructions:
             else:
                 self.status_label.config(
                     text=f"📖 {student_name} ({student_section})",
-                    fg='#2196F3',
+                    fg='#1ABC9C',  # Bright cyan for dark theme
                     font=("Arial", 14, "bold")
                 )
             
@@ -807,7 +971,7 @@ Instructions:
             
             self.status_label.config(
                 text=f"Who is this student from {self.current_student['section']}?",
-                fg='#666'
+                fg='#ECF0F1'  # Light text for dark theme
             )
             self.name_entry.delete(0, tk.END)
             self.name_entry.focus()
@@ -860,8 +1024,8 @@ Instructions:
     def _speech_recognition_thread(self):
         """Speech recognition thread"""
         try:
-            self.voice_button.config(state='disabled', text="🎤 Listening...")
-            self.status_label.config(text="🎤 Listening... Speak now!", fg='blue')
+            self.voice_button.config(state='disabled', text="🎤 Listening...", bg='#1976D2', fg='white')
+            self.status_label.config(text="🎤 Listening... Speak now!", fg='#F1C40F')  # Bright yellow for dark theme
             
             with self.microphone as source:
                 # Adjust for ambient noise
@@ -885,18 +1049,18 @@ Instructions:
         except Exception as e:
             self.root.after(0, self._handle_voice_error, f"Error: {e}")
         finally:
-            self.root.after(0, lambda: self.voice_button.config(state='normal', text="🎤 Say Name"))
+            self.root.after(0, lambda: self.voice_button.config(state='normal', text="🎤 Say Name", bg='#2196F3', fg='white'))
     
     def _handle_voice_input(self, text):
         """Handle successful voice input"""
         self.name_entry.delete(0, tk.END)
         self.name_entry.insert(0, text)
-        self.status_label.config(text=f"I heard: '{text}' - Press Enter or click Submit to check!", fg='blue')
+        self.status_label.config(text=f"I heard: '{text}' - Press Enter or click Submit to check!", fg='#F1C40F')  # Bright yellow
         self.name_entry.focus()  # Focus on the text field for easy Enter press
     
     def _handle_voice_error(self, error_message):
         """Handle voice input error"""
-        self.status_label.config(text=f"Voice error: {error_message} - Try again or type the name.", fg='red')
+        self.status_label.config(text=f"Voice error: {error_message} - Try again or type the name.", fg='#E74C3C')  # Bright red for dark theme
     
     def check_name_entry(self, event=None):
         """Check the name from text entry"""
@@ -1005,7 +1169,7 @@ Instructions:
         if remaining > 0:
             self.status_label.config(
                 text=f"🎯 Very close! '{guess}' is almost right. Try the exact spelling? ({remaining} attempts left)",
-                fg='orange'
+                fg='#F39C12'  # Bright orange for dark theme
             )
             
             if self.tts_engine:
@@ -1020,7 +1184,7 @@ Instructions:
             
             self.status_label.config(
                 text=f"🎯 Close! You said '{guess}' - the exact answer is: {correct_name}",
-                fg='red'
+                fg='#E74C3C'  # Bright red for dark theme
             )
             
             if self.tts_engine:
@@ -1046,7 +1210,7 @@ Instructions:
         
         self.status_label.config(
             text=f"✅ Correct! This is {correct_name} (but it took {self.attempt_count} tries)",
-            fg='green'
+            fg='#27AE60'  # Bright green for dark theme
         )
         
         # Text-to-speech feedback
@@ -1086,7 +1250,7 @@ Instructions:
         
         self.status_label.config(
             text=f"✅ {message} This is {correct_name}",
-            fg='green'
+            fg='#27AE60'  # Bright green for dark theme
         )
         
         # Text-to-speech feedback
@@ -1118,7 +1282,7 @@ Instructions:
             
             self.status_label.config(
                 text=f"❌ The correct answer is: {correct_name}",
-                fg='red'
+                fg='#E74C3C'  # Bright red for dark theme
             )
             
             if self.tts_engine:
@@ -1133,7 +1297,7 @@ Instructions:
             remaining = self.max_attempts - self.attempt_count
             self.status_label.config(
                 text=f"❌ Not quite right. {remaining} attempts remaining. Try again or ask for a hint!",
-                fg='orange'
+                fg='#F39C12'  # Bright orange for dark theme
             )
             
             if self.tts_engine:
@@ -1173,7 +1337,7 @@ Instructions:
             hint = f"The answer is {first_name} {last_name}"
         
         self.hint_level += 1
-        self.status_label.config(text=f"💡 Hint {self.hint_level}: {hint}", fg='blue')
+        self.status_label.config(text=f"💡 Hint {self.hint_level}: {hint}", fg='#F1C40F')  # Bright yellow for maximum visibility
         
         if self.tts_engine:
             threading.Thread(target=lambda: self.speak(f"Hint: {hint}"), daemon=True).start()
