@@ -629,8 +629,13 @@ class StudentNameGame:
 def main():
     """Main function to start the application"""
     game = StudentNameGame()
-    if hasattr(game, 'root') and game.root.winfo_exists():
-        game.run()
+    if hasattr(game, 'root'):
+        try:
+            if game.root.winfo_exists():
+                game.run()
+        except tk.TclError:
+            # Window was destroyed during initialization
+            pass
 
 if __name__ == "__main__":
     main()
