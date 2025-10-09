@@ -282,6 +282,8 @@ class StudentNameGame:
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Change Photo Folder...", command=self.change_photo_folder)
         file_menu.add_separator()
+        file_menu.add_command(label="📚 Switch to Study Mode", command=self.switch_to_study)
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
         
         # Game info display
@@ -624,6 +626,20 @@ class StudentNameGame:
         self.stats_label.config(
             text=f"Progress: {completed}/{len(self.students)} | Perfect (no hints): {perfect}"
         )
+    
+    def switch_to_study(self):
+        """Launch the study mode app"""
+        import subprocess
+        
+        # Get the path to the flashcards app
+        flashcards_app = os.path.join(os.path.dirname(__file__), 'student_name_flashcards.py')
+        python_exe = sys.executable
+        
+        # Launch the flashcards app
+        subprocess.Popen([python_exe, flashcards_app])
+        
+        # Close this app
+        self.root.quit()
     
     def run(self):
         """Start the game"""
