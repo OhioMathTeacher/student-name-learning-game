@@ -366,8 +366,16 @@ class StudentFlashcards:
         import subprocess
         import sys
         
-        # Get the path to the quiz app
-        quiz_app = os.path.join(os.path.dirname(__file__), 'student_name_game.py')
+        # Determine the path to the quiz app
+        # This works for both development and PyInstaller bundled apps
+        if getattr(sys, 'frozen', False):
+            # Running in a PyInstaller bundle
+            base_path = sys._MEIPASS
+            quiz_app = os.path.join(base_path, 'student_name_game.py')
+        else:
+            # Running in normal Python
+            quiz_app = os.path.join(os.path.dirname(__file__), 'student_name_game.py')
+        
         python_exe = sys.executable
         
         # Launch the quiz app

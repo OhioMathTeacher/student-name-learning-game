@@ -631,8 +631,16 @@ class StudentNameGame:
         """Launch the study mode app"""
         import subprocess
         
-        # Get the path to the flashcards app
-        flashcards_app = os.path.join(os.path.dirname(__file__), 'student_name_flashcards.py')
+        # Determine the path to the flashcards app
+        # This works for both development and PyInstaller bundled apps
+        if getattr(sys, 'frozen', False):
+            # Running in a PyInstaller bundle
+            base_path = sys._MEIPASS
+            flashcards_app = os.path.join(base_path, 'student_name_flashcards.py')
+        else:
+            # Running in normal Python
+            flashcards_app = os.path.join(os.path.dirname(__file__), 'student_name_flashcards.py')
+        
         python_exe = sys.executable
         
         # Launch the flashcards app

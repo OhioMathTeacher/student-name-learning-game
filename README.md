@@ -19,7 +19,23 @@ A simple, clean educational tool designed to help teachers learn student names t
 
 ## 🚀 Quick Start
 
-### Run the Application
+### Download Pre-Built Executables (Easiest!)
+
+**No Python installation required!** Download the ready-to-run version for your platform:
+
+1. Go to [Releases](https://github.com/OhioMathTeacher/student-name-learning-game/releases)
+2. Download for your platform:
+   - **Windows**: `StudentNameGame.exe`
+   - **macOS**: `StudentNameGame-macOS.dmg`
+   - **Linux**: `StudentNameGame-Linux.AppImage`
+3. Run the downloaded file!
+
+*Executables are automatically built for every release using GitHub Actions.*
+
+### Run from Source
+
+If you prefer to run from source code:
+
 ```bash
 # Clone the repository
 git clone https://github.com/OhioMathTeacher/student-name-learning-game.git
@@ -32,20 +48,37 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the application
+# Run the quiz mode
 python student_name_game.py
+
+# Or run the study/flashcard mode
+python student_name_flashcards.py
 ```
 
 ## 📁 Project Structure
 
 ```
 student-name-learning-game/
-├── student_name_game.py          # Main application
-├── student_name_game_simple.py   # Backup of simple version
-├── requirements.txt              # Dependencies
-├── README.md                     # This file
-└── app_icon.png                  # Application icon
+├── student_name_game.py             # Quiz mode application
+├── student_name_flashcards.py       # Study/flashcard mode
+├── build_simple.py                  # Local build script for macOS
+├── requirements.txt                 # Runtime dependencies
+├── requirements_build.txt           # Build dependencies
+├── .github/workflows/               # CI/CD automation
+│   └── build-executables.yml        # Auto-build for Win/Mac/Linux
+├── README.md                        # This file
+└── app_icon.png                     # Application icon
 ```
+
+## 🎮 Two Modes
+
+### Quiz Mode (`student_name_game.py`)
+Test yourself! See a student photo and type their name. Track your streak and progress.
+
+### Study Mode (`student_name_flashcards.py`)
+Learn the names! View photos with names displayed. Auto-advance through students at your own pace.
+
+**Switch between modes**: Use File → Switch to Quiz/Study Mode in either app!
 
 ## 🎯 How to Use
 
@@ -103,6 +136,32 @@ This tool is designed for educational use with student photos. Please:
 - **Photos Not Loading**: Check that photos are in supported formats (JPG, PNG, etc.)
 - **No Text-to-Speech**: Audio drivers may need updating, but the app works fine without sound
 - **App Slow to Start**: Large photo folders may take a moment to load initially
+
+## 🏗️ Building Executables
+
+### Automated Builds (Recommended)
+
+Executables are automatically built via GitHub Actions on every push and release:
+- **Windows** `.exe` 
+- **macOS** `.app` and `.dmg`
+- **Linux** AppImage
+
+View build status and download artifacts from the [Actions tab](https://github.com/OhioMathTeacher/student-name-learning-game/actions).
+
+### Manual Local Build (macOS only)
+
+```bash
+# Activate your virtual environment first
+source .venv/bin/activate
+
+# Run the build script
+python build_simple.py
+
+# Find your .app in dist/
+open dist/
+```
+
+The build script creates a complete macOS `.app` bundle with both quiz and study modes included.
 
 ## 🤝 Contributing
 
