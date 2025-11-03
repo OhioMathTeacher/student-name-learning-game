@@ -21,16 +21,22 @@ A simple, clean educational tool designed to help teachers learn student names t
 
 ### Download Pre-Built Executables (Easiest!)
 
-**No Python installation required!** Download the ready-to-run version for your platform:
+**No Python installation required!** 
 
+**For Official Releases:**
 1. Go to [Releases](https://github.com/OhioMathTeacher/student-name-learning-game/releases)
-2. Download for your platform:
+2. Download the latest version for your platform:
    - **Windows**: `StudentNameGame.exe`
    - **macOS**: `StudentNameGame-macOS.dmg`
    - **Linux**: `StudentNameGame-Linux.AppImage`
 3. Run the downloaded file!
 
-*Executables are automatically built for every release using GitHub Actions.*
+**For Latest Development Builds:**
+1. Go to [Actions](https://github.com/OhioMathTeacher/student-name-learning-game/actions)
+2. Click on the latest successful workflow run
+3. Download artifacts (available for 30 days)
+
+*Executables are automatically built on every push to main.*
 
 ### Run from Source
 
@@ -139,14 +145,41 @@ This tool is designed for educational use with student photos. Please:
 
 ## 🏗️ Building Executables
 
-### Automated Builds (Recommended)
+### Automated Builds via GitHub Actions
 
-Executables are automatically built via GitHub Actions on every push and release:
+Executables are automatically built on every push to `main`:
 - **Windows** `.exe` 
 - **macOS** `.app` and `.dmg`
 - **Linux** AppImage
 
-View build status and download artifacts from the [Actions tab](https://github.com/OhioMathTeacher/student-name-learning-game/actions).
+**To download the latest builds:**
+1. Go to the [Actions tab](https://github.com/OhioMathTeacher/student-name-learning-game/actions)
+2. Click on the latest successful "Build Cross-Platform Executables" workflow
+3. Scroll down to "Artifacts" section
+4. Download:
+   - `windows-executable` for Windows .exe
+   - `macos-dmg` for macOS installer
+   - `linux-appimage` for Linux AppImage
+
+*Note: Artifacts are kept for 30 days. For permanent downloads, create a release (see below).*
+
+### Creating a Release with Downloadable Executables
+
+To create an official release with permanent download links:
+
+```bash
+# Create and push a version tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# Or use GitHub CLI
+gh release create v1.0.0 --title "Version 1.0.0" --notes "Release notes here"
+```
+
+Once you push a tag or create a release on GitHub, the workflow will automatically:
+1. Build executables for all platforms
+2. Attach them to the release
+3. Make them available on the [Releases page](https://github.com/OhioMathTeacher/student-name-learning-game/releases)
 
 ### Manual Local Build (macOS only)
 
