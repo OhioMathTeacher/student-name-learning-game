@@ -24,21 +24,22 @@ A simple, clean educational tool designed to help teachers learn student names t
 **No Python installation required!** 
 
 **Latest Builds (Always Up-to-Date):**
-👉 **[Download Latest Executables](https://github.com/OhioMathTeacher/student-name-learning-game/actions/workflows/build-executables.yml)** 👈
 
+👉 **[Click Here to Download Latest Build](https://github.com/OhioMathTeacher/student-name-learning-game/actions/runs/19035786701)** 👈
+
+**How to download:**
 1. Click the link above
-2. Click on the top (most recent) successful workflow run (green checkmark ✓)
-3. Scroll to bottom and download from "Artifacts" section:
-   - **Windows**: `windows-executable`
-   - **macOS**: `macos-dmg` or `macos-app`
-   - **Linux**: `linux-appimage`
-4. Extract the zip and run!
+2. Scroll down to the **"Artifacts"** section at the bottom
+3. Click to download:
+   - `windows-executable` - Windows .exe (17 MB)
+   - `macos-dmg` - macOS installer (83 MB) 
+   - `linux-appimage` - Linux AppImage
+4. Extract the zip file and run the app!
 
 **Official Releases (Stable Versions):**
-- [View Releases](https://github.com/OhioMathTeacher/student-name-learning-game/releases)
-- Download the latest release for your platform
+- [View Releases](https://github.com/OhioMathTeacher/student-name-learning-game/releases) (coming soon)
 
-*Note: Latest builds are kept for 30 days. Releases are permanent.*
+*Note: Build artifacts are kept for 30 days.*
 
 ### Run from Source
 
