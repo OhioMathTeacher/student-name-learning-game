@@ -21,25 +21,23 @@ A simple, clean educational tool designed to help teachers learn student names t
 
 ### Download Pre-Built Executables (Easiest!)
 
-**No Python installation required!** 
+**No Python installation required!** Download and run immediately:
 
-**Latest Builds (Always Up-to-Date):**
+**📥 Direct Downloads:**
 
-👉 **[Click Here to Download Latest Build](https://github.com/OhioMathTeacher/student-name-learning-game/actions/runs/19035786701)** 👈
+| Platform | Download Link | Size |
+|----------|--------------|------|
+| 🪟 **Windows** | [StudentNameGame.exe](https://github.com/OhioMathTeacher/student-name-learning-game/releases/download/v1.0.0/StudentNameGame.exe) | 17 MB |
+| 🍎 **macOS** | [StudentNameGame-macOS.dmg](https://github.com/OhioMathTeacher/student-name-learning-game/releases/download/v1.0.0/StudentNameGame-macOS.dmg) | 16 MB |
+| 🐧 **Linux** | [StudentNameGame-Linux.AppImage](https://github.com/OhioMathTeacher/student-name-learning-game/releases/download/v1.0.0/StudentNameGame-Linux.AppImage) | 28 MB |
 
-**How to download:**
-1. Click the link above
-2. Scroll down to the **"Artifacts"** section at the bottom
-3. Click to download:
-   - `windows-executable` - Windows .exe (17 MB)
-   - `macos-dmg` - macOS installer (83 MB) 
-   - `linux-appimage` - Linux AppImage
-4. Extract the zip file and run the app!
+**How to run:**
+- **Windows**: Click to download the .exe file, then double-click to run
+- **macOS**: Download the .dmg file, open it, and drag to Applications
+- **Linux**: Download the AppImage, make it executable (`chmod +x StudentNameGame-Linux.AppImage`), then run
 
-**Official Releases (Stable Versions):**
-- [View Releases](https://github.com/OhioMathTeacher/student-name-learning-game/releases) (coming soon)
-
-*Note: Build artifacts are kept for 30 days.*
+**All Releases:**
+- [View All Releases](https://github.com/OhioMathTeacher/student-name-learning-game/releases)
 
 ### Run from Source
 
