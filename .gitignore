@@ -192,3 +192,6 @@ sections.json
 NO-PHOTO.txt
 *.jpg
 *.jpeg
+
+# Internal working notes -- local only, not for public consumption
+NEXT-STEPS.md
