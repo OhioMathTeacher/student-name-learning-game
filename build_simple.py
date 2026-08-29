@@ -30,6 +30,7 @@ def build_app():
         "--windowed",
         "--name", "Name Game",
         "--osx-bundle-identifier", "com.educator.studentnamegame",
+        "--add-data", "sample-roster:sample-roster",
         "--clean",
         "--noconfirm",
         # Add both Python files

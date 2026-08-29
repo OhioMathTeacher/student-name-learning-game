@@ -178,3 +178,17 @@ xref-*.html
 app_icon.ico
 *.dmg
 *.app
+# --- Student data must never be committed -------------------------------
+# The app keeps photos in ~/Pictures/student-headshots and its state in
+# ~/.student_name_game, so nothing below is needed to run or build it. These
+# rules are here because a folder dropped into a clone would otherwise be
+# tracked -- and a saved roster page holds student ID numbers, not just faces.
+student-headshots/
+*headshots*/
+Photo Roster*
+*_files/
+hints.json
+sections.json
+NO-PHOTO.txt
+*.jpg
+*.jpeg

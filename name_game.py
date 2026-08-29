@@ -479,6 +479,9 @@ class PrepareView(tk.Frame):
                    ).pack(side=tk.LEFT)
         self._link(foot, "I already saved it  \u2192", lambda: self._go("import"),
                    fg=theme.ACCENT).pack(side=tk.RIGHT)
+        if roster.sample_folder():
+            self._link(foot, "Try it with 5 sample students",
+                       self.load_sample).pack(side=tk.LEFT, padx=(24, 0))
 
         # --- step 2: import what the browser saved
         card = self._card(self.steps["import"])
@@ -605,6 +608,13 @@ class PrepareView(tk.Frame):
         webbrowser.open(prepare.ROSTER_APP)
         # They have gone to the browser to save it; be waiting on step 2.
         self._go("import")
+
+    def load_sample(self):
+        """Open the bundled fictional roster, so the app can show what it does."""
+        folder = roster.sample_folder()
+        if folder:
+            self.app.set_folder(folder)
+            self.app.show("study")
 
     def choose_page(self):
         picked = filedialog.askopenfilename(

@@ -61,3 +61,16 @@ def load(folder):
             "key": stem,
         })
     return students
+
+
+def sample_folder():
+    """The five fictional students shipped with the app, or None if absent.
+
+    Lets someone try the app before they have prepared a real roster -- and
+    means a demo never needs student photos on screen.
+    """
+    import sys
+
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    folder = os.path.join(base, "sample-roster")
+    return folder if os.path.isdir(folder) and load(folder) else None
