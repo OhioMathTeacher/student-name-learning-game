@@ -9,10 +9,13 @@ two frames in the same window and switching just raises one.
 Photos are named LastName_FirstName.jpg in a folder per section.
 """
 
+import os
 import random
+import webbrowser
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import filedialog, messagebox
 
+import prepare
 import roster
 import theme
 
@@ -384,6 +387,247 @@ class QuizView(tk.Frame):
             self.check()
 
 
+class PrepareView(tk.Frame):
+    """Build a photo folder from a roster page saved out of the browser.
+
+    Three states, one at a time: choose a roster, confirm what was found, see
+    the result. Showing all three at once made a wall of text.
+    """
+
+    HOW_TO = (
+        "Open your photo roster in the browser, signed in as usual.\n\n"
+        "Then File \u2192 Save Page As, and choose \u201cWeb Page, complete\u201d "
+        "so the photos are saved too.\n\n"
+        "Point this at whatever it saved \u2014 the page or the folder beside it."
+    )
+
+    def __init__(self, parent, app):
+        super().__init__(parent, bg=theme.BG)
+        self.app = app
+        self.html_path = None
+        self.info = None
+        self.prepared_folder = None
+        self._build()
+        self._go("choose")
+
+    # -- construction -------------------------------------------------
+    def _link(self, parent, text, command):
+        link = theme.label(parent, text, size=theme.SIZE_SMALL, fg=theme.ACCENT)
+        link.configure(cursor="hand2")
+        link.bind("<Button-1>", lambda _e: command())
+        return link
+
+    def _build(self):
+        header = tk.Frame(self, bg=theme.BG)
+        header.pack(fill=tk.X, padx=32, pady=(24, 8))
+        theme.label(header, "Prepare photos", size=theme.SIZE_TITLE,
+                    weight="bold").pack(anchor="w")
+        self.subtitle = theme.label(header, "", size=theme.SIZE_BODY, fg=theme.MUTED)
+        self.subtitle.pack(anchor="w", pady=(2, 0))
+
+        tk.Frame(self, bg=theme.BORDER, height=1).pack(fill=tk.X, padx=32, pady=(12, 0))
+
+        body = tk.Frame(self, bg=theme.BG)
+        body.pack(fill=tk.BOTH, expand=True)
+        body.rowconfigure(0, weight=1)
+        body.columnconfigure(0, weight=1)
+
+        self.steps = {}
+        for name in ("choose", "confirm", "done"):
+            frame = tk.Frame(body, bg=theme.BG)
+            frame.grid(row=0, column=0, sticky="nsew")
+            self.steps[name] = frame
+
+        # --- choose
+        choose = self.steps["choose"]
+        inner = tk.Frame(choose, bg=theme.BG)
+        inner.place(relx=0.5, rely=0.42, anchor="center")
+
+        theme.label(inner, "1.  Open your roster and save it from the browser",
+                    size=theme.SIZE_BODY, fg=theme.MUTED).pack(anchor="w")
+        theme.button(inner, "Open my photo rosters", self.open_roster_app).pack(
+            anchor="w", pady=(8, 4))
+        self.reopen_frame = tk.Frame(inner, bg=theme.BG)
+        self.reopen_frame.pack(anchor="w")
+        self._link(inner, "How do I save it?",
+                   lambda: messagebox.showinfo("Saving the roster", self.HOW_TO)
+                   ).pack(anchor="w", pady=(6, 22))
+
+        theme.label(inner, "2.  Point this at what the browser saved",
+                    size=theme.SIZE_BODY, fg=theme.MUTED).pack(anchor="w")
+        theme.button(inner, "Choose saved roster\u2026", self.choose_page,
+                     primary=True).pack(anchor="w", pady=(8, 0))
+
+        # --- confirm
+        confirm = self.steps["confirm"]
+        inner = tk.Frame(confirm, bg=theme.BG)
+        inner.place(relx=0.5, rely=0.42, anchor="center")
+        self.course_line = theme.label(inner, "", size=theme.SIZE_LABEL, weight="bold")
+        self.course_line.pack()
+        self.detail_line = theme.label(inner, "", size=theme.SIZE_BODY, fg=theme.MUTED)
+        self.detail_line.pack(pady=(4, 22))
+
+        theme.label(inner, "Save these photos as", size=theme.SIZE_SMALL,
+                    fg=theme.MUTED).pack()
+        self.label_var = tk.StringVar()
+        self.label_entry = tk.Entry(
+            inner, textvariable=self.label_var, width=26, justify="center",
+            font=theme.font(theme.SIZE_BODY), bg=theme.SURFACE, fg=theme.TEXT,
+            insertbackground=theme.TEXT, relief=tk.FLAT, bd=0, highlightthickness=1,
+            highlightbackground=theme.BORDER, highlightcolor=theme.ACCENT
+        )
+        self.label_entry.pack(ipady=6, pady=(6, 4))
+        self.campus_hint = theme.label(inner, "", size=theme.SIZE_SMALL, fg=theme.MUTED)
+        self.campus_hint.pack()
+
+        steps_text = (
+            "Reads the names off the page, copies each photo as "
+            "LastName_FirstName,\nskips anyone the roster has no photo for, and "
+            "writes them to your Pictures folder."
+        )
+        theme.label(inner, steps_text, size=theme.SIZE_SMALL, fg=theme.MUTED,
+                    justify="center").pack(pady=(18, 0))
+        theme.button(inner, "Prepare photos", self.run, primary=True).pack(pady=(14, 0))
+        self._link(inner, "Choose a different roster", self.choose_page).pack(pady=(12, 0))
+
+        # --- done
+        done = self.steps["done"]
+        inner = tk.Frame(done, bg=theme.BG)
+        inner.place(relx=0.5, rely=0.42, anchor="center")
+        self.result_headline = theme.label(inner, "", size=theme.SIZE_FEATURE,
+                                           weight="bold")
+        self.result_headline.pack()
+        self.result_path = theme.label(inner, "", size=theme.SIZE_SMALL, fg=theme.MUTED,
+                                       wraplength=700, justify="center")
+        self.result_path.pack(pady=(8, 0))
+        self.result_missing = theme.label(inner, "", size=theme.SIZE_SMALL,
+                                          fg=theme.MUTED, wraplength=700,
+                                          justify="center")
+        self.result_missing.pack(pady=(14, 0))
+        theme.button(inner, "Open it in Study", self.open_result,
+                     primary=True).pack(pady=(24, 0))
+        self._link(inner, "Prepare another section",
+                   lambda: self._go("choose")).pack(pady=(12, 0))
+
+        theme.label(self, "Photos stay on this computer. Nothing is uploaded.",
+                    size=theme.SIZE_SMALL, fg=theme.MUTED).pack(side=tk.BOTTOM, pady=18)
+
+    def _go(self, step):
+        self.subtitle.config(text={
+            "choose": "Turn a saved roster page into a folder this app can use.",
+            "confirm": "Check this is the right section, then name the folder.",
+            "done": "Ready to practise.",
+        }[step])
+        self.steps[step].tkraise()
+
+    # -- lifecycle ----------------------------------------------------
+    def on_show(self):
+        self.refresh_reopen()
+
+    def on_hide(self):
+        pass
+
+    def on_roster_changed(self):
+        pass
+
+    def handles_typing(self, widget):
+        return widget is self.label_entry
+
+    # -- actions ------------------------------------------------------
+    def open_roster_app(self):
+        webbrowser.open(prepare.ROSTER_APP)
+
+    def refresh_reopen(self):
+        """Offer a direct link to any section already imported once."""
+        for child in self.reopen_frame.winfo_children():
+            child.destroy()
+        for label, where in sorted(prepare.known_sections().items())[:4]:
+            self._link(
+                self.reopen_frame, f"\u2192  {label} roster (CRN {where['crn']})",
+                lambda w=where: webbrowser.open(prepare.roster_url(w["term"], w["crn"]))
+            ).pack(anchor="w", pady=1)
+
+    def choose_page(self):
+        picked = filedialog.askopenfilename(
+            parent=self.app.root,
+            title="Choose the saved roster",
+            initialdir=next((d for d in (
+                os.path.expanduser("~/Desktop"), os.path.expanduser("~/Downloads"),
+                os.path.expanduser("~")) if os.path.isdir(d)), None),
+            filetypes=[("Saved web page", "*.html *.htm"), ("All files", "*.*")],
+        )
+        if not picked:
+            return
+
+        path = prepare.resolve(picked)
+        if not path:
+            messagebox.showwarning(
+                "Prepare photos",
+                "That does not look like a saved roster.\n\n"
+                "Choose the .html file the browser saved, or the folder next to it."
+            )
+            return
+
+        try:
+            info = prepare.read(path)
+        except OSError as exc:
+            messagebox.showerror("Prepare photos", f"Could not read that page.\n\n{exc}")
+            return
+
+        if not info["students"] or not info["files_dir_exists"]:
+            messagebox.showwarning(
+                "Prepare photos",
+                "No photos found with that page.\n\n"
+                "It needs to be saved as \u201cWeb Page, complete\u201d, which also "
+                "saves a folder of images beside it."
+            )
+            return
+
+        self.html_path, self.info = path, info
+        self.course_line.config(
+            text=f"{info['number']}: {info['title']}" if info["number"] else "Roster")
+        bits = [f"CRN {info['crn']}"] if info["crn"] else []
+        if info["term"]:
+            bits.append(f"term {info['term']}")
+        bits.append(f"{len(info['students'])} students")
+        self.detail_line.config(text="  \u00b7  ".join(bits))
+        self.label_var.set(info["label"])
+        self.campus_hint.config(
+            text=f"Teaching two sections of {info['number'] or 'this course'}? "
+                 "Add the campus." if info["number"] else "")
+        self._go("confirm")
+
+    def run(self):
+        if not self.html_path:
+            return
+        out_root = os.path.join(os.path.expanduser("~"), "Pictures", "student-headshots")
+        try:
+            outcome = prepare.prepare(self.html_path, out_root, self.label_var.get())
+        except OSError as exc:
+            messagebox.showerror("Prepare photos", f"Could not write the photos.\n\n{exc}")
+            return
+
+        self.prepared_folder = outcome["folder"]
+        prepare.remember_section(os.path.basename(outcome["folder"]),
+                                 self.info.get("term"), self.info.get("crn"))
+        self.result_headline.config(
+            text=f"{outcome['written']} photos ready", fg=theme.OK)
+        self.result_path.config(text=outcome["folder"])
+        if outcome["missing"]:
+            self.result_missing.config(
+                text="No photo on the roster for "
+                     + ", ".join(sorted(outcome["missing"]))
+                     + ". Listed in NO-PHOTO.txt.")
+        else:
+            self.result_missing.config(text="")
+        self._go("done")
+
+    def open_result(self):
+        if self.prepared_folder:
+            self.app.set_folder(self.prepared_folder)
+            self.app.show("study")
+
+
 class NameGame:
     def __init__(self, root):
         self.root = root
@@ -405,7 +649,8 @@ class NameGame:
 
         self.study = StudyView(container, self)
         self.quiz = QuizView(container, self)
-        for view in (self.study, self.quiz):
+        self.prepare_view = PrepareView(container, self)
+        for view in (self.study, self.quiz, self.prepare_view):
             view.grid(row=0, column=0, sticky="nsew")
         self.course_label.lift()   # the container is packed over it otherwise
 
@@ -418,10 +663,10 @@ class NameGame:
             "Photo folder", f"Use the same photo folder as last time?\n\n{folder}"
         ):
             self.set_folder(folder)
-        else:
-            self.choose_folder()
 
-        self.show("study")
+        # A colleague opening this for the first time has no photos yet, so
+        # start them on the screen that makes some rather than an empty picker.
+        self.show("study" if self.students else "prepare")
         theme.fit_window(self.root)
 
     def _build_menu(self):
@@ -429,12 +674,16 @@ class NameGame:
         self.root.config(menu=menubar)
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Prepare photos from a saved roster\u2026",
+                              command=lambda: self.show("prepare"))
         file_menu.add_command(label="Change photo folder", command=self.choose_folder)
         file_menu.add_separator()
         file_menu.add_radiobutton(label="Study", variable=self.mode, value="study",
                                   command=lambda: self.show("study"))
         file_menu.add_radiobutton(label="Quiz", variable=self.mode, value="quiz",
                                   command=lambda: self.show("quiz"))
+        file_menu.add_radiobutton(label="Prepare photos", variable=self.mode,
+                                  value="prepare", command=lambda: self.show("prepare"))
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
 
@@ -461,8 +710,11 @@ class NameGame:
             self.quiz.on_return()
         return "break"
 
+    VIEWS = ("study", "quiz", "prepare")
+
     def current_view(self):
-        return self.quiz if self.mode.get() == "quiz" else self.study
+        return {"quiz": self.quiz, "prepare": self.prepare_view}.get(
+            self.mode.get(), self.study)
 
     def show(self, mode):
         leaving = self.current_view()
@@ -474,6 +726,7 @@ class NameGame:
         entering.on_show()
 
     def toggle_mode(self):
+        """Ctrl+Tab flips between the two practice screens only."""
         self.show("quiz" if self.mode.get() == "study" else "study")
 
     def choose_folder(self):
@@ -496,11 +749,8 @@ class NameGame:
 
 def main():
     root = tk.Tk()
-    app = NameGame(root)
-    if app.students:
-        root.mainloop()
-    else:
-        root.destroy()
+    NameGame(root)
+    root.mainloop()
 
 
 if __name__ == "__main__":
