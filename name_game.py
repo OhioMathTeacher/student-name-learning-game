@@ -11,6 +11,7 @@ Photos are named LastName_FirstName.jpg in a folder per section.
 
 import os
 import random
+import sys
 import webbrowser
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -394,11 +395,16 @@ class PrepareView(tk.Frame):
     the result. Showing all three at once made a wall of text.
     """
 
+    SAVE_KEY = "\u2318S" if sys.platform == "darwin" else "Ctrl+S"
+
     HOW_TO = (
-        "Open your photo roster in the browser, signed in as usual.\n\n"
-        "Then File \u2192 Save Page As, and choose \u201cWeb Page, complete\u201d "
-        "so the photos are saved too.\n\n"
-        "Point this at whatever it saved \u2014 the page or the folder beside it."
+        "In the browser \u2014 not in this app \u2014 with your photo roster open:\n\n"
+        f"Press {SAVE_KEY}, then choose \u201cWeb Page, complete\u201d as the format. "
+        "That saves the photos alongside the page; \u201cHTML only\u201d does not.\n\n"
+        "Some browsers also offer this as File \u2192 Save Page As, but most hide "
+        "that menu, so the keyboard shortcut is the reliable route.\n\n"
+        "Then come back here and choose whatever it saved \u2014 the page itself "
+        "or the folder beside it."
     )
 
     def __init__(self, parent, app):
@@ -459,7 +465,8 @@ class PrepareView(tk.Frame):
                     bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
         theme.label(card,
                     "Opens the registrar's photo roster in your browser, where you are\n"
-                    "already signed in. Save it there with File \u2192 Save Page As.",
+                    f"already signed in. Save it there with {self.SAVE_KEY}, choosing\n"
+                    "\u201cWeb Page, complete\u201d.",
                     size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
                     justify="left").pack(anchor="w", pady=(0, 16))
         theme.button(card, "Open my photo rosters", self.open_roster_app,
@@ -480,7 +487,8 @@ class PrepareView(tk.Frame):
         theme.label(card, "Import it here", size=theme.SIZE_LABEL, weight="bold",
                     bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
         theme.label(card,
-                    "Point this at the page your browser saved, or the folder beside it.",
+                    f"In the browser: {self.SAVE_KEY}, format \u201cWeb Page, complete\u201d.\n"
+                    "Then choose what it saved \u2014 the page, or the folder beside it.",
                     size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
                     justify="left").pack(anchor="w", pady=(0, 16))
         theme.button(card, "Choose saved roster\u2026", self.choose_page,
@@ -579,6 +587,21 @@ class PrepareView(tk.Frame):
 
     # -- actions ------------------------------------------------------
     def open_roster_app(self):
+        """Tell them what to do over there before sending them over there.
+
+        The instruction is useless once they are looking at the browser and this
+        window is behind it, so it goes in front of them first.
+        """
+        if not messagebox.askokcancel(
+            "Opening your roster",
+            "Your photo rosters open in the browser next.\n\n"
+            "Pick the section you want, then press "
+            f"{self.SAVE_KEY} and choose \u201cWeb Page, complete\u201d "
+            "as the format \u2014 that saves the photos as well as the page.\n\n"
+            "Then come back to this window.",
+            icon=messagebox.INFO,
+        ):
+            return
         webbrowser.open(prepare.ROSTER_APP)
         # They have gone to the browser to save it; be waiting on step 2.
         self._go("import")
