@@ -21,22 +21,6 @@ def get_config_path():
         os.makedirs(config_dir)
     return os.path.join(config_dir, "config.json")
 
-def fit_window(root, min_w=800, min_h=700):
-    """Size the window to its content, then centre it.
-
-    The old hardcoded geometry assumed ~96 DPI. On a HiDPI display Tk scales
-    fonts up but not a fixed "800x900", so headers and buttons were clipped
-    outside the window and could not be clicked. Asking Tk how much room the
-    widgets actually need gets this right at any scaling factor.
-    """
-    root.update_idletasks()
-    w = max(root.winfo_reqwidth(), min_w)
-    h = max(root.winfo_reqheight(), min_h)
-    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-    w, h = min(w, sw - 80), min(h, sh - 120)
-    root.geometry(f"{w}x{h}+{max(0,(sw-w)//2)}+{max(0,(sh-h)//2)}")
-    root.minsize(min(min_w, w), min(min_h, h))
-
 def save_folder(folder):
     """Save the current folder to config"""
     config_path = get_config_path()
@@ -91,7 +75,7 @@ class StudentFlashcards:
             else:
                 self.choose_folder()
 
-        fit_window(self.root, 900, 800)
+        theme.fit_window(self.root)
 
     def create_widgets(self):
         # Menu bar
@@ -147,6 +131,31 @@ class StudentFlashcards:
                                          size=theme.SIZE_BODY, fg=theme.MUTED)
         self.counter_label.pack(pady=(0, 24))
 
+        # ---- memory hint ---------------------------------------------
+        hint_frame = tk.Frame(self.root, bg=theme.BG)
+        hint_frame.pack(fill=tk.X, padx=90, pady=(0, 18))
+
+        theme.label(hint_frame, "Memory hint", size=theme.SIZE_SMALL,
+                    fg=theme.MUTED).pack(anchor="w")
+
+        self.hint_entry = tk.Entry(
+            hint_frame,
+            font=theme.font(theme.SIZE_BODY),
+            bg=theme.SURFACE, fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+            relief=tk.FLAT, bd=0,
+            highlightthickness=1,
+            highlightbackground=theme.BORDER,
+            highlightcolor=theme.ACCENT
+        )
+        self.hint_entry.pack(fill=tk.X, ipady=6, pady=(4, 2))
+        self.hint_entry.bind("<Return>", lambda e: self.save_current_hint())
+        self.hint_entry.bind("<FocusOut>", lambda e: self.save_current_hint())
+
+        self.hint_status = theme.label(hint_frame, "", size=theme.SIZE_SMALL,
+                                       fg=theme.MUTED)
+        self.hint_status.pack(anchor="w")
+
         # ---- primary controls ----------------------------------------
         button_frame = tk.Frame(self.root, bg=theme.BG)
         button_frame.pack()
@@ -197,11 +206,11 @@ class StudentFlashcards:
         ).pack(pady=(22, 18))
 
         # Bind keyboard shortcuts
-        self.root.bind('<space>', lambda e: self.next_student())
+        self.root.bind('<space>', self._shortcut(self.next_student))
         self.root.bind('<Left>', lambda e: self.previous_student())
         self.root.bind('<Right>', lambda e: self.next_student())
-        self.root.bind('s', lambda e: self.shuffle_students())
-        self.root.bind('a', lambda e: self.toggle_auto_advance())
+        self.root.bind('s', self._shortcut(self.shuffle_students))
+        self.root.bind('a', self._shortcut(self.toggle_auto_advance))
     
     def choose_folder(self):
         folder = theme.ask_folder(self.root, load_folder())
@@ -238,6 +247,23 @@ class StudentFlashcards:
         else:
             messagebox.showwarning("No Photos", "No photos found in the selected folder.")
     
+    def _shortcut(self, action):
+        """Ignore single-key shortcuts while the hint box has focus."""
+        def handler(event):
+            if event.widget is getattr(self, 'hint_entry', None):
+                return None
+            action()
+            return "break"
+        return handler
+
+    def save_current_hint(self):
+        if not self.students:
+            return
+        key = theme.hint_key(self.students[self.current_index]['filepath'])
+        theme.save_hint(key, self.hint_entry.get())
+        self.hint_status.config(text="Saved")
+        self.root.after(1200, lambda: self.hint_status.config(text=""))
+
     def show_current_student(self):
         if not self.students:
             return
@@ -260,10 +286,16 @@ class StudentFlashcards:
         
         # Display name
         self.name_label.config(text=student['name'])
+
+        # Load this student's memory hint
+        self.hint_entry.delete(0, tk.END)
+        self.hint_entry.insert(0, theme.load_hints().get(theme.hint_key(student['filepath']), ""))
+        self.hint_status.config(text="")
     
     def next_student(self):
         if not self.students:
             return
+        self.save_current_hint()
         
         self.current_index = (self.current_index + 1) % len(self.students)
         self.show_current_student()
@@ -271,6 +303,7 @@ class StudentFlashcards:
     def previous_student(self):
         if not self.students:
             return
+        self.save_current_hint()
         
         self.current_index = (self.current_index - 1) % len(self.students)
         self.show_current_student()
@@ -278,6 +311,7 @@ class StudentFlashcards:
     def shuffle_students(self):
         if not self.students:
             return
+        self.save_current_hint()
         
         random.shuffle(self.students)
         self.current_index = 0

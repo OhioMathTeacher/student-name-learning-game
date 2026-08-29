@@ -15,22 +15,6 @@ import os
 import sys
 import json
 
-def fit_window(root, min_w=800, min_h=700):
-    """Size the window to its content, then centre it.
-
-    The old hardcoded geometry assumed ~96 DPI. On a HiDPI display Tk scales
-    fonts up but not a fixed "800x900", so headers and buttons were clipped
-    outside the window and could not be clicked. Asking Tk how much room the
-    widgets actually need gets this right at any scaling factor.
-    """
-    root.update_idletasks()
-    w = max(root.winfo_reqwidth(), min_w)
-    h = max(root.winfo_reqheight(), min_h)
-    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-    w, h = min(w, sw - 80), min(h, sh - 120)
-    root.geometry(f"{w}x{h}+{max(0,(sw-w)//2)}+{max(0,(sh-h)//2)}")
-    root.minsize(min(min_w, w), min(min_h, h))
-
 def get_config_path():
     """Get path for storing app configuration"""
     home_dir = os.path.expanduser("~")
@@ -238,7 +222,7 @@ class StudentNameGame:
             color = self.error_color
         
         self.feedback_label.config(text=result_text, fg=color)
-        self.root.after_idle(lambda: fit_window(self.root, 800, 700))
+        self.root.after_idle(lambda: theme.fit_window(self.root))
         
         # Show restart button
         if getattr(self, 'restart_btn', None) is not None:
@@ -340,7 +324,9 @@ class StudentNameGame:
             highlightbackground=theme.BORDER
         )
         self.name_entry.pack(pady=10)
-        self.name_entry.bind("<Return>", lambda e: self.check_answer())
+        self.name_entry.bind("<Return>", self._on_return)
+        # Also on the window, so Enter still restarts when the entry is disabled
+        self.root.bind("<Return>", self._on_return)
         
         # Force initial focus and visibility
         self.root.after(100, lambda: self.name_entry.focus_force())
@@ -529,18 +515,25 @@ class StudentNameGame:
         if not hasattr(self, 'hint_level'):
             self.hint_level = 0
         
-        if self.hint_level == 0:
+        own = theme.load_hints().get(theme.hint_key(self.current_student['image_path'])) \
+            if 'image_path' in self.current_student else None
+
+        if self.hint_level == 0 and own:
+            # A hint Todd wrote in study mode beats counting letters
+            hint_text = own
+            self.hint_level += 1
+        elif self.hint_level == 0:
             # First hint: number of letters
-            hint_text = f"💡 This student's name has {len(name.replace(' ', ''))} letters"
+            hint_text = f"This student's name has {len(name.replace(' ', ''))} letters"
             self.hint_level += 1
         elif self.hint_level == 1:
             # Second hint: first letter of first name
             first_name = name.split()[0]
-            hint_text = f"💡 Their first name starts with '{first_name[0].upper()}'"
+            hint_text = f"Their first name starts with '{first_name[0].upper()}'"
             self.hint_level += 1
         else:
             # Final hint: show the answer
-            hint_text = f"💡 The answer is: {name}"
+            hint_text = f"The answer is: {name}"
             self.hint_btn.config(
                 state="disabled",
                 bg=theme.SURFACE,
@@ -598,9 +591,17 @@ class StudentNameGame:
         # Close this app
         self.root.quit()
     
+    def _on_return(self, _event=None):
+        """Enter submits an answer, or starts the next game once it is over."""
+        if self.game_over:
+            self.start_new_game()
+        else:
+            self.check_answer()
+        return "break"
+
     def run(self):
         """Start the game"""
-        fit_window(self.root, 800, 700)
+        theme.fit_window(self.root)
         self.root.mainloop()
 
 def main():

@@ -144,3 +144,80 @@ def course_name(folder):
     if base.startswith("headshots-"):
         return f"{parent} {base.split('-', 1)[1].capitalize()}".strip()
     return base.replace("-", " ").replace("_", " ")
+
+
+# One window size for both modes, so switching between them does not resize.
+WINDOW_W = 960
+WINDOW_H = 1040
+
+
+def hints_path():
+    import os
+    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "hints.json")
+
+
+def load_hints():
+    """Memory hints Todd writes in study mode, keyed by photo filename stem."""
+    import json
+    import os
+
+    p = hints_path()
+    if not os.path.exists(p):
+        return {}
+    try:
+        with open(p, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (ValueError, OSError):
+        return {}
+
+
+def save_hint(key, text):
+    import json
+
+    hints = load_hints()
+    text = (text or "").strip()
+    if text:
+        hints[key] = text
+    else:
+        hints.pop(key, None)
+    try:
+        with open(hints_path(), "w", encoding="utf-8") as fh:
+            json.dump(hints, fh, indent=2, sort_keys=True)
+    except OSError:
+        pass
+    return hints
+
+
+def hint_key(filepath):
+    """Stable per-student key: the filename stem, e.g. Smith_Alex."""
+    import os
+
+    return os.path.splitext(os.path.basename(filepath))[0]
+
+
+def fit_window(root, min_w=None, min_h=None):
+    """Give every window the same size and the same place on screen.
+
+    Size: WINDOW_W x WINDOW_H, grown only if the content genuinely needs more,
+    so quiz mode and study mode match and switching between them does not
+    resize.
+
+    Position: computed the same way every launch, so the window always opens
+    where you last saw it rather than wandering. Deliberately NOT remembered
+    between runs: this window manager reports a position ~870px away from the
+    one it was given, so saving and restoring that value walked the window
+    down the screen a little further on every launch.
+    """
+    min_w = WINDOW_W if min_w is None else min_w
+    min_h = WINDOW_H if min_h is None else min_h
+
+    root.update_idletasks()
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    w = min(max(root.winfo_reqwidth(), min_w), sw - 80)
+    h = min(max(root.winfo_reqheight(), min_h), sh - 120)
+
+    root.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 2)}")
+    root.minsize(min(min_w, w), min(min_h, h))
