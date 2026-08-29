@@ -231,9 +231,9 @@ class QuizView(tk.Frame):
         self.buttons = controls
         self.submit_btn = theme.button(controls, "Submit", self.check, primary=True)
         self.submit_btn.pack(side=tk.LEFT, padx=6)
-        self.hint_btn = theme.button(controls, "Hint", self.hint)
+        self.hint_btn = theme.button(controls, "Hint  (Ctrl+H)", self.hint)
         self.hint_btn.pack(side=tk.LEFT, padx=6)
-        self.skip_btn = theme.button(controls, "Skip", self.skip)
+        self.skip_btn = theme.button(controls, "Skip  (Esc)", self.skip)
         self.skip_btn.pack(side=tk.LEFT, padx=6)
 
         self.feedback = theme.label(self, "", size=theme.SIZE_LABEL, weight="bold",
@@ -803,7 +803,23 @@ class NameGame:
         self.root.bind("s", shortcut(lambda: self.study.shuffle()))
         self.root.bind("a", shortcut(lambda: self.study.toggle_auto()))
         self.root.bind("<Return>", self._on_return)
+        self.root.bind("<Control-h>", self._quiz_key(lambda: self.quiz.hint()))
+        self.root.bind("<Control-H>", self._quiz_key(lambda: self.quiz.hint()))
+        self.root.bind("<Escape>", self._quiz_key(lambda: self.quiz.skip()))
         self.root.bind("<Control-Tab>", lambda e: self.toggle_mode())
+
+    def _quiz_key(self, action):
+        """Run `action` only while the quiz is the visible screen.
+
+        Bound on the window rather than the entry so they still fire while the
+        answer box has focus -- Ctrl+H would otherwise be swallowed as a delete.
+        """
+        def handler(_event=None):
+            if self.current_view() is not self.quiz:
+                return None
+            action()
+            return "break"
+        return handler
 
     def _on_return(self, _event=None):
         if self.current_view() is self.quiz:
