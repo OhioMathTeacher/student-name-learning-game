@@ -34,7 +34,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: windows-executable
-        path: dist/StudentNameGame.exe
+        path: dist/NameGame.exe
         retention-days: 30
 
   build-macos-arm64:
@@ -112,14 +112,14 @@ jobs:
         mkdir -p StudentNameGame.AppDir/usr/share/icons/hicolor/256x256/apps
         
         # Copy executable
-        cp dist/StudentNameGame StudentNameGame.AppDir/usr/bin/
+        cp dist/NameGame StudentNameGame.AppDir/usr/bin/
         
         # Create desktop file
         cat > StudentNameGame.AppDir/usr/share/applications/studentnamegame.desktop << 'EOF'
         [Desktop Entry]
         Type=Application
         Name=Student Name Learning Game
-        Exec=StudentNameGame
+        Exec=NameGame
         Icon=studentnamegame
         Categories=Education;
         Comment=Learn student names through interactive flashcards and quizzes
@@ -132,7 +132,7 @@ jobs:
         HERE=${SELF%/*}
         export PATH="${HERE}/usr/bin/:${PATH}"
         export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
-        exec "${HERE}/usr/bin/StudentNameGame" "$@"
+        exec "${HERE}/usr/bin/NameGame" "$@"
         EOF
         chmod +x StudentNameGame.AppDir/AppRun
         
@@ -166,7 +166,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: linux-executable
-        path: dist/StudentNameGame
+        path: dist/NameGame
         retention-days: 30
 
   create-release:
@@ -181,7 +181,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          windows-executable/StudentNameGame.exe
+          windows-executable/NameGame.exe
           macos-arm64-dmg/StudentNameGame-macOS-ARM64.dmg
           linux-appimage/StudentNameGame-Linux.AppImage
       env:
