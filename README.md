@@ -1,6 +1,10 @@
-# Student Name Learning Game 🎓📸
+# Name Game 🎓📸
 
-A simple, clean educational tool designed to help teachers learn student names through photo-based practice.
+A simple, clean tool for learning your students' names from their photos.
+
+One window with two screens: **Study** walks the roster with each name shown and
+lets you write a memory hint per face; **Quiz** hides the name and asks for it,
+using your hint when you need one.
 
 ## 🌟 Features
 
@@ -54,19 +58,17 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the quiz mode
-python student_name_game.py
-
-# Or run the study/flashcard mode
-python student_name_flashcards.py
+# Run it
+python name_game.py
 ```
 
 ## 📁 Project Structure
 
 ```
 student-name-learning-game/
-├── student_name_game.py             # Quiz mode application
-├── student_name_flashcards.py       # Study/flashcard mode
+├── name_game.py                     # the app: one window, Study + Quiz
+├── theme.py                         # palette, type scale, photo box, hints
+├── roster.py                        # folder -> students, last-folder memory
 ├── build_simple.py                  # Local build script for macOS
 ├── requirements.txt                 # Runtime dependencies
 ├── requirements_build.txt           # Build dependencies
@@ -78,13 +80,13 @@ student-name-learning-game/
 
 ## 🎮 Two Modes
 
-### Quiz Mode (`student_name_game.py`)
+### Quiz (File → Quiz)
 Test yourself! See a student photo and type their name. Track your streak and progress.
 
-### Study Mode (`student_name_flashcards.py`)
+### Study (File → Study)
 Learn the names! View photos with names displayed. Auto-advance through students at your own pace.
 
-**Switch between modes**: Use File → Switch to Quiz/Study Mode in either app!
+**Switch between them**: File → Study / Quiz, or Ctrl+Tab. Same window, no restart.
 
 ## 🎯 How to Use
 

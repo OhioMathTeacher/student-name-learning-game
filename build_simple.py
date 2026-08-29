@@ -28,12 +28,11 @@ def build_app():
         "pyinstaller",
         "--onedir",
         "--windowed",
-        "--name", "Student Name Learning Game",
+        "--name", "Name Game",
         "--osx-bundle-identifier", "com.educator.studentnamegame",
         "--clean",
         "--noconfirm",
         # Add both Python files
-        "--add-data", "student_name_game.py:.",
         # Add icon if it exists
     ]
     
@@ -53,7 +52,7 @@ def build_app():
         cmd.extend(["--hidden-import", imp])
     
     # Main script
-    cmd.append("student_name_flashcards.py")
+    cmd.append("name_game.py")
     
     try:
         subprocess.check_call(cmd)
@@ -100,12 +99,12 @@ def main():
         print("❌ This script is for macOS only")
         return 1
     
-    if not os.path.exists('student_name_game.py'):
-        print("❌ student_name_game.py not found")
+    if not os.path.exists('name_game.py'):
+        print("❌ name_game.py not found")
         return 1
     
-    if not os.path.exists('student_name_flashcards.py'):
-        print("❌ student_name_flashcards.py not found")
+    if not os.path.exists('theme.py'):
+        print("❌ theme.py not found")
         return 1
     
     try:

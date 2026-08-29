@@ -42,7 +42,7 @@ for section in ['Section A', 'Section B']:
             image_files.append((str(img_file), section))
 
 a = Analysis(
-    ['student_name_game.py'],
+    ['name_game.py'],
     pathex=[],
     binaries=[],
     datas=image_files,  # Include all image files
@@ -99,7 +99,7 @@ def update_app_for_bundling():
     """Update the app to work with bundled resources"""
     
     # Create a modified version that works with PyInstaller
-    with open('student_name_game.py', 'r') as f:
+    with open('name_game.py', 'r') as f:
         content = f.read()
     
     # Add resource path helper at the top
@@ -349,9 +349,9 @@ def main():
     print("=" * 50)
     
     # Check if we're in the right directory
-    if not os.path.exists('student_name_game.py'):
-        print("❌ Error: student_name_game.py not found in current directory")
-        print("Please run this script from the same directory as student_name_game.py")
+    if not os.path.exists('name_game.py'):
+        print("❌ Error: name_game.py not found in current directory")
+        print("Please run this script from the same directory as name_game.py")
         return
     
     # Check for image folders

@@ -17,7 +17,9 @@ MUTED = "#93A6BA"          # captions, hints, shortcuts
 ACCENT = "#2F80ED"         # primary action
 ACCENT_ACTIVE = "#4B94F2"
 SURFACE_ACTIVE = "#2E415A"
-STOP = "#C9524E"           # the one destructive/stop state
+OK = "#3FB068"             # correct answer
+HINT = "#E0B341"           # hint text
+STOP = "#C9524E"           # wrong answer, stop states
 STOP_ACTIVE = "#D96460"
 
 FAMILY = "Helvetica"       # Tk maps this to a sane sans on every platform

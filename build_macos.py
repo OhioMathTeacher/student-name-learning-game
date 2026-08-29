@@ -84,7 +84,7 @@ def create_app_icon():
 
 def update_app_for_bundling():
     """Create a version of the app that works with PyInstaller bundling"""
-    with open('student_name_game.py', 'r') as f:
+    with open('name_game.py', 'r') as f:
         content = f.read()
     
     # Add resource path helper
@@ -143,9 +143,7 @@ def build_app():
                 data_files.extend(["--add-data", f"{img_file}:{section}"])
     
     # Add the flashcards app as a bundled resource
-    if os.path.exists('student_name_game.py'):
-        data_files.extend(["--add-data", "student_name_game.py:."])
-        print("✅ Including quiz mode in bundle")
+    # theme.py and roster.py are plain imports, so PyInstaller finds them.
     
     # PyInstaller command
     cmd = [
@@ -291,8 +289,8 @@ def main():
         return 1
     
     # Check if we're in the right directory
-    if not os.path.exists('student_name_game.py'):
-        print("❌ Error: student_name_game.py not found in current directory")
+    if not os.path.exists('name_game.py'):
+        print("❌ Error: name_game.py not found in current directory")
         return 1
     
     # Check for image folders
