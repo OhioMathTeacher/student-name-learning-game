@@ -301,18 +301,13 @@ def create_readme():
     """Create a README file for the executable"""
     readme_content = '''# Student Name Learning Game
 
-A comprehensive application to help teachers learn student names using photos
-and intelligent difficulty analysis.
+A comprehensive application to help teachers learn student names from their photos.
 
 ## Features
 
 ✅ **Quiz Mode**: Test your knowledge with scoring and progress tracking
 ✅ **Review Mode**: Auto-advancing slideshow with speed control and pause/resume
 ✅ **Smart Hints**: Progressive hints that get more specific
-✅ **Fuzzy Matching**: Recognizes close answers like "Grace" for "Gracie"
-✅ **Difficulty Analysis**: Identifies challenging students with personalized memory strategies
-✅ **Session Tracking**: Ensures every student is asked exactly once per session
-✅ **High Score Tracking**: Beat your personal best scores
 
 ## How to Use
 

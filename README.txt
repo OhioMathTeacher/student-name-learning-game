@@ -1,38 +1,44 @@
-# Student Name Learning Game
+# Name Game
 
-A comprehensive application to help teachers learn student names using photos
-and intelligent difficulty analysis.
+Learn your students' names from their photos.
 
-## Features
+## Two screens, one window
 
-✅ **Quiz Mode**: Test your knowledge with scoring and progress tracking
-✅ **Review Mode**: Auto-advancing slideshow with speed control and pause/resume
-✅ **Smart Hints**: Progressive hints that get more specific
-✅ **Fuzzy Matching**: Recognizes close answers like "Grace" for "Gracie"
-✅ **Difficulty Analysis**: Identifies challenging students with personalized memory strategies
-✅ **Session Tracking**: Ensures every student is asked exactly once per session
-✅ **High Score Tracking**: Beat your personal best scores
+STUDY   Walks your roster with each name shown. Write a memory hint under any
+        face; it is saved for you.
+QUIZ    Hides the name and asks for it. Your hint is the first hint offered.
+        One wrong answer ends the run.
 
-## How to Use
+Switch with File > Study / Quiz, or Ctrl+Tab.
 
-1. **Select Section**: Choose Section A, Section B, or Both
-2. **Take Quiz**: Answer for each student - get scored on first-try accuracy
-3. **Check Analysis**: Click "📊 Analysis" to see which students are challenging
-4. **Study Strategies**: Get personalized memory tips for difficult faces
-5. **Practice Review**: Use Review Mode to study at your own pace
-6. **Improve Scores**: Take another quiz and watch your success rate grow!
+## Getting your photos in
 
-## System Requirements
+File > Prepare photos walks you through it:
 
-- Windows 10+ / Linux (Ubuntu 18.04+)
+  1. It opens your photo roster in the browser, where you are already signed in.
+     Save the page there with Ctrl+S (Cmd+S on a Mac), choosing
+     "Web Page, complete" so the photos are saved as well as the page.
+  2. Point the app at what the browser saved -- the page, or the folder beside
+     it. It names each photo LastName_FirstName and writes them to
+     Pictures/student-headshots.
 
-## Installation
+Anyone the roster has no photo for is skipped and listed in NO-PHOTO.txt.
 
-Run the installer script (install.bat on Windows, install.sh on Linux)
-or simply double-click the executable to run directly.
+No account or API key is needed, and nothing is uploaded: the photos stay on
+the computer that prepared them. The app offers to delete the saved roster page
+afterwards, because that file holds student ID numbers as well as faces.
 
-## Troubleshooting
+## Trying it first
 
-- If no student photos appear, ensure image files are in the correct folders
+File > Prepare photos > "Try it with 5 sample students" loads five invented
+students that ship with the app, so you can see how it works before touching a
+real roster.
 
-## Version 1.0 - Created with ❤️ for educators
+## If you already have photos
+
+Any folder of images named LastName_FirstName.jpg works. Use
+File > Change photo folder.
+
+## Requirements
+
+Windows 10+, macOS 11+ (Apple Silicon), or Linux. Nothing else to install.

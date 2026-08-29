@@ -253,9 +253,6 @@ def create_readme():
 ✅ Quiz Mode with scoring and progress tracking
 ✅ Review Mode with auto-advancing slideshow  
 ✅ Smart progressive hints
-✅ Difficulty analysis with memory strategies
-✅ Fuzzy name matching (recognizes variations)
-✅ High score tracking
 
 ## Usage
 1. Select Section A, Section B, or Both

@@ -1,34 +1,26 @@
-# Student Name Learning Game - macOS Installation
+# Name Game - macOS
 
-## Quick Install
-1. Double-click "Student_Name_Learning_Game.dmg"
-2. Drag "Student Name Learning Game.app" to your Applications folder
+## Install
+1. Open the .dmg
+2. Drag "Name Game" to Applications
 3. Launch from Applications or Launchpad
 
-## First Run
-- You may see a security warning - this is normal for unsigned apps
-- Right-click the app and select "Open" to bypass the warning
+## First run
+The app is not signed, so macOS will warn you the first time.
+Right-click it and choose Open, then Open again.
 
-## Features
-✅ Quiz Mode with scoring and progress tracking
-✅ Review Mode with auto-advancing slideshow  
-✅ Smart progressive hints
-✅ Difficulty analysis with memory strategies
-✅ Fuzzy name matching (recognizes variations)
-✅ High score tracking
+## What it does
+Study  - walks your roster with names shown, and lets you write a memory hint
+         under each face
+Quiz   - hides the name and asks for it, using your hint when you need one
 
-## Usage
-1. Select Section A, Section B, or Both
-2. Answer for each student photo
-3. Use "Give Hint" if you need help
-4. Check "📊 Analysis" to see challenging students
-5. Try Review Mode for quick memorization
+Switch with File > Study / Quiz, or Ctrl+Tab.
 
-## System Requirements
-- macOS 10.14 or later
+File > Prepare photos turns a roster saved out of your browser into a photo
+folder. Nothing is uploaded; the photos stay on this Mac.
 
-## Troubleshooting
-- If the app won't open: Right-click → Open → Open anyway
-- If no photos appear: Ensure your image files were included in the build
+Not sure yet? File > Prepare photos > "Try it with 5 sample students".
 
-Created with ❤️ for educators
+## Trouble
+App will not open      Right-click > Open > Open
+No photos appear       File > Change photo folder, or prepare a roster first
