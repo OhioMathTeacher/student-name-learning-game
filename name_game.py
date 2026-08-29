@@ -408,14 +408,26 @@ class PrepareView(tk.Frame):
         self.info = None
         self.prepared_folder = None
         self._build()
-        self._go("choose")
+        self._go("get")
 
     # -- construction -------------------------------------------------
-    def _link(self, parent, text, command):
-        link = theme.label(parent, text, size=theme.SIZE_SMALL, fg=theme.ACCENT)
+    def _link(self, parent, text, command, bg=None, fg=None):
+        link = theme.label(parent, text, size=theme.SIZE_SMALL,
+                           fg=fg or theme.MUTED, bg=bg or theme.BG)
         link.configure(cursor="hand2")
         link.bind("<Button-1>", lambda _e: command())
+        link.bind("<Enter>", lambda _e: link.configure(fg=theme.TEXT))
+        link.bind("<Leave>", lambda _e: link.configure(fg=fg or theme.MUTED))
         return link
+
+    def _card(self, parent):
+        """A panel so the content reads as an object, not text adrift on navy."""
+        card = tk.Frame(parent, bg=theme.SURFACE, highlightthickness=1,
+                        highlightbackground=theme.BORDER)
+        card.pack(fill=tk.X, padx=40, pady=(28, 0))
+        inner = tk.Frame(card, bg=theme.SURFACE)
+        inner.pack(fill=tk.X, padx=30, pady=26)
+        return inner
 
     def _build(self):
         header = tk.Frame(self, bg=theme.BG)
@@ -433,30 +445,55 @@ class PrepareView(tk.Frame):
         body.columnconfigure(0, weight=1)
 
         self.steps = {}
-        for name in ("choose", "confirm", "done"):
+        for name in ("get", "import", "confirm", "done"):
             frame = tk.Frame(body, bg=theme.BG)
             frame.grid(row=0, column=0, sticky="nsew")
             self.steps[name] = frame
 
         # --- choose
-        choose = self.steps["choose"]
-        inner = tk.Frame(choose, bg=theme.BG)
-        inner.place(relx=0.5, rely=0.42, anchor="center")
+        # --- step 1: get the roster out of the browser
+        card = self._card(self.steps["get"])
+        theme.label(card, "Step 1", size=theme.SIZE_SMALL, fg=theme.ACCENT,
+                    bg=theme.SURFACE).pack(anchor="w")
+        theme.label(card, "Get your roster", size=theme.SIZE_LABEL, weight="bold",
+                    bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
+        theme.label(card,
+                    "Opens the registrar's photo roster in your browser, where you are\n"
+                    "already signed in. Save it there with File \u2192 Save Page As.",
+                    size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
+                    justify="left").pack(anchor="w", pady=(0, 16))
+        theme.button(card, "Open my photo rosters", self.open_roster_app,
+                     primary=True).pack(anchor="w")
 
-        theme.label(inner, "1.  Open your roster and save it from the browser",
-                    size=theme.SIZE_BODY, fg=theme.MUTED).pack(anchor="w")
-        theme.button(inner, "Open my photo rosters", self.open_roster_app).pack(
-            anchor="w", pady=(8, 4))
-        self.reopen_frame = tk.Frame(inner, bg=theme.BG)
+        self.reopen_wrap = tk.Frame(card, bg=theme.SURFACE)
+        self.reopen_wrap.pack(anchor="w", fill=tk.X, pady=(16, 0))
+        self.reopen_frame = tk.Frame(self.reopen_wrap, bg=theme.SURFACE)
         self.reopen_frame.pack(anchor="w")
-        self._link(inner, "How do I save it?",
-                   lambda: messagebox.showinfo("Saving the roster", self.HOW_TO)
-                   ).pack(anchor="w", pady=(6, 22))
 
-        theme.label(inner, "2.  Point this at what the browser saved",
-                    size=theme.SIZE_BODY, fg=theme.MUTED).pack(anchor="w")
-        theme.button(inner, "Choose saved roster\u2026", self.choose_page,
-                     primary=True).pack(anchor="w", pady=(8, 0))
+        foot = tk.Frame(self.steps["get"], bg=theme.BG)
+        foot.pack(fill=tk.X, padx=40, pady=(14, 0))
+        self._link(foot, "What exactly do I save?",
+                   lambda: messagebox.showinfo("Saving the roster", self.HOW_TO)
+                   ).pack(side=tk.LEFT)
+        self._link(foot, "I already saved it  \u2192", lambda: self._go("import"),
+                   fg=theme.ACCENT).pack(side=tk.RIGHT)
+
+        # --- step 2: import what the browser saved
+        card = self._card(self.steps["import"])
+        theme.label(card, "Step 2", size=theme.SIZE_SMALL, fg=theme.ACCENT,
+                    bg=theme.SURFACE).pack(anchor="w")
+        theme.label(card, "Import it here", size=theme.SIZE_LABEL, weight="bold",
+                    bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
+        theme.label(card,
+                    "Point this at the page your browser saved, or the folder beside it.",
+                    size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
+                    justify="left").pack(anchor="w", pady=(0, 16))
+        theme.button(card, "Choose saved roster\u2026", self.choose_page,
+                     primary=True).pack(anchor="w")
+
+        foot = tk.Frame(self.steps["import"], bg=theme.BG)
+        foot.pack(fill=tk.X, padx=40, pady=(14, 0))
+        self._link(foot, "\u2190  back to step 1", lambda: self._go("get")).pack(side=tk.LEFT)
 
         # --- confirm
         confirm = self.steps["confirm"]
@@ -506,15 +543,27 @@ class PrepareView(tk.Frame):
         self.result_missing.pack(pady=(14, 0))
         theme.button(inner, "Open it in Study", self.open_result,
                      primary=True).pack(pady=(24, 0))
+
+        self.tidy_note = theme.label(
+            inner,
+            "The saved roster page also holds student ID numbers.\n"
+            "You do not need it any more.",
+            size=theme.SIZE_SMALL, fg=theme.MUTED, justify="center")
+        self.tidy_note.pack(pady=(22, 4))
+        self.tidy_link = self._link(inner, "Delete the saved roster page",
+                                    self.discard_source)
+        self.tidy_link.pack()
+
         self._link(inner, "Prepare another section",
-                   lambda: self._go("choose")).pack(pady=(12, 0))
+                   lambda: self._go("get")).pack(pady=(16, 0))
 
         theme.label(self, "Photos stay on this computer. Nothing is uploaded.",
                     size=theme.SIZE_SMALL, fg=theme.MUTED).pack(side=tk.BOTTOM, pady=18)
 
     def _go(self, step):
         self.subtitle.config(text={
-            "choose": "Turn a saved roster page into a folder this app can use.",
+            "get": "First, save your roster out of the browser.",
+            "import": "Now bring that saved roster in here.",
             "confirm": "Check this is the right section, then name the folder.",
             "done": "Ready to practise.",
         }[step])
@@ -536,16 +585,26 @@ class PrepareView(tk.Frame):
     # -- actions ------------------------------------------------------
     def open_roster_app(self):
         webbrowser.open(prepare.ROSTER_APP)
+        # They have gone to the browser to save it; be waiting on step 2.
+        self._go("import")
 
     def refresh_reopen(self):
-        """Offer a direct link to any section already imported once."""
-        for child in self.reopen_frame.winfo_children():
+        """Direct links to sections imported before, kept quiet under the button."""
+        for child in self.reopen_wrap.winfo_children():
             child.destroy()
-        for label, where in sorted(prepare.known_sections().items())[:4]:
-            self._link(
-                self.reopen_frame, f"\u2192  {label} roster (CRN {where['crn']})",
-                lambda w=where: webbrowser.open(prepare.roster_url(w["term"], w["crn"]))
-            ).pack(anchor="w", pady=1)
+        known = sorted(prepare.known_sections().items())[:4]
+        if not known:
+            return
+        theme.label(self.reopen_wrap, "Straight to a section you imported before",
+                    size=theme.SIZE_SMALL, fg=theme.MUTED,
+                    bg=theme.SURFACE).pack(anchor="w", pady=(0, 4))
+        row = tk.Frame(self.reopen_wrap, bg=theme.SURFACE)
+        row.pack(anchor="w")
+        for label, where in known:
+            self._link(row, f"{label}  \u00b7  CRN {where['crn']}",
+                       lambda w=where: webbrowser.open(
+                           prepare.roster_url(w["term"], w["crn"])),
+                       bg=theme.SURFACE).pack(side=tk.LEFT, padx=(0, 18))
 
     def choose_page(self):
         picked = filedialog.askopenfilename(
@@ -612,6 +671,9 @@ class PrepareView(tk.Frame):
                                  self.info.get("term"), self.info.get("crn"))
         self.result_headline.config(
             text=f"{outcome['written']} photos ready", fg=theme.OK)
+        self.tidy_note.config(text="The saved roster page also holds student ID "
+                                   "numbers.\nYou do not need it any more.")
+        self.tidy_link.pack()
         self.result_path.config(text=outcome["folder"])
         if outcome["missing"]:
             self.result_missing.config(
@@ -621,6 +683,29 @@ class PrepareView(tk.Frame):
         else:
             self.result_missing.config(text="")
         self._go("done")
+
+    def discard_source(self):
+        """Offer to remove the saved page now the photos are copied out."""
+        if not self.html_path or not os.path.exists(self.html_path):
+            return
+        page, folder = prepare.saved_pair(self.html_path)
+        if not messagebox.askyesno(
+            "Delete the saved roster",
+            "Delete these? The photos you just prepared are not affected.\n\n"
+            f"{page}\n{folder}\n\n"
+            "The page holds student ID numbers as well as names and photos, "
+            "so it is worth not leaving it around."
+        ):
+            return
+        try:
+            prepare.discard(self.html_path)
+        except OSError as exc:
+            messagebox.showerror("Delete the saved roster",
+                                 f"Could not delete it.\n\n{exc}")
+            return
+        self.html_path = None
+        self.tidy_note.config(text="Saved roster deleted.")
+        self.tidy_link.pack_forget()
 
     def open_result(self):
         if self.prepared_folder:

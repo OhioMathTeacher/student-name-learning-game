@@ -213,3 +213,27 @@ def known_sections():
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+def saved_pair(html_path):
+    """The two things the browser wrote: the page and its images folder."""
+    return html_path, files_dir(html_path)
+
+
+def discard(html_path):
+    """Delete the saved page and its images folder.
+
+    Worth offering once the photos are copied out: the page is not just
+    pictures. Every student row carries a `drop-student/pidm/<id>` link, so the
+    saved file holds internal student ID numbers as well as names and faces.
+    Never called without asking first.
+    """
+    removed = []
+    folder = files_dir(html_path)
+    if os.path.isdir(folder):
+        shutil.rmtree(folder)
+        removed.append(folder)
+    if os.path.isfile(html_path):
+        os.remove(html_path)
+        removed.append(html_path)
+    return removed
