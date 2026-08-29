@@ -183,7 +183,6 @@ jobs:
         files: |
           windows-executable/StudentNameGame.exe
           macos-arm64-dmg/StudentNameGame-macOS-ARM64.dmg
-          macos-intel-dmg/StudentNameGame-macOS-Intel.dmg
           linux-appimage/StudentNameGame-Linux.AppImage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
