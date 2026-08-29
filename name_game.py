@@ -465,11 +465,6 @@ class PrepareView(tk.Frame):
         theme.button(card, "Open my photo rosters", self.open_roster_app,
                      primary=True).pack(anchor="w")
 
-        self.reopen_wrap = tk.Frame(card, bg=theme.SURFACE)
-        self.reopen_wrap.pack(anchor="w", fill=tk.X, pady=(16, 0))
-        self.reopen_frame = tk.Frame(self.reopen_wrap, bg=theme.SURFACE)
-        self.reopen_frame.pack(anchor="w")
-
         foot = tk.Frame(self.steps["get"], bg=theme.BG)
         foot.pack(fill=tk.X, padx=40, pady=(14, 0))
         self._link(foot, "What exactly do I save?",
@@ -571,7 +566,7 @@ class PrepareView(tk.Frame):
 
     # -- lifecycle ----------------------------------------------------
     def on_show(self):
-        self.refresh_reopen()
+        pass
 
     def on_hide(self):
         pass
@@ -587,24 +582,6 @@ class PrepareView(tk.Frame):
         webbrowser.open(prepare.ROSTER_APP)
         # They have gone to the browser to save it; be waiting on step 2.
         self._go("import")
-
-    def refresh_reopen(self):
-        """Direct links to sections imported before, kept quiet under the button."""
-        for child in self.reopen_wrap.winfo_children():
-            child.destroy()
-        known = sorted(prepare.known_sections().items())[:4]
-        if not known:
-            return
-        theme.label(self.reopen_wrap, "Straight to a section you imported before",
-                    size=theme.SIZE_SMALL, fg=theme.MUTED,
-                    bg=theme.SURFACE).pack(anchor="w", pady=(0, 4))
-        row = tk.Frame(self.reopen_wrap, bg=theme.SURFACE)
-        row.pack(anchor="w")
-        for label, where in known:
-            self._link(row, f"{label}  \u00b7  CRN {where['crn']}",
-                       lambda w=where: webbrowser.open(
-                           prepare.roster_url(w["term"], w["crn"])),
-                       bg=theme.SURFACE).pack(side=tk.LEFT, padx=(0, 18))
 
     def choose_page(self):
         picked = filedialog.askopenfilename(
@@ -669,6 +646,7 @@ class PrepareView(tk.Frame):
         self.prepared_folder = outcome["folder"]
         prepare.remember_section(os.path.basename(outcome["folder"]),
                                  self.info.get("term"), self.info.get("crn"))
+        self.app.refresh_roster_menu()
         self.result_headline.config(
             text=f"{outcome['written']} photos ready", fg=theme.OK)
         self.tidy_note.config(text="The saved roster page also holds student ID "
@@ -761,6 +739,10 @@ class NameGame:
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Prepare photos from a saved roster\u2026",
                               command=lambda: self.show("prepare"))
+        self.roster_menu = tk.Menu(file_menu, tearoff=0)
+        file_menu.add_cascade(label="Open a roster in the browser",
+                              menu=self.roster_menu)
+        self.refresh_roster_menu()
         file_menu.add_command(label="Change photo folder", command=self.choose_folder)
         file_menu.add_separator()
         file_menu.add_radiobutton(label="Study", variable=self.mode, value="study",
@@ -796,6 +778,20 @@ class NameGame:
         return "break"
 
     VIEWS = ("study", "quiz", "prepare")
+
+    def refresh_roster_menu(self):
+        """List sections already imported, so their roster is one click away."""
+        self.roster_menu.delete(0, "end")
+        known = sorted(prepare.known_sections().items())
+        if not known:
+            self.roster_menu.add_command(label="None imported yet", state="disabled")
+            return
+        for label, where in known:
+            self.roster_menu.add_command(
+                label=f"{label}  \u00b7  CRN {where['crn']}",
+                command=lambda w=where: webbrowser.open(
+                    prepare.roster_url(w["term"], w["crn"]))
+            )
 
     def current_view(self):
         return {"quiz": self.quiz, "prepare": self.prepare_view}.get(
