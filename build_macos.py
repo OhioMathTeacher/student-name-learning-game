@@ -143,9 +143,9 @@ def build_app():
                 data_files.extend(["--add-data", f"{img_file}:{section}"])
     
     # Add the flashcards app as a bundled resource
-    if os.path.exists('student_name_flashcards.py'):
-        data_files.extend(["--add-data", "student_name_flashcards.py:."])
-        print("✅ Including flashcards/study mode in bundle")
+    if os.path.exists('student_name_game.py'):
+        data_files.extend(["--add-data", "student_name_game.py:."])
+        print("✅ Including quiz mode in bundle")
     
     # PyInstaller command
     cmd = [

@@ -5,12 +5,31 @@ A proper game that ends when you miss one or complete all students without hints
 """
 
 import tkinter as tk
+import traceback
+
+import theme
 from tkinter import ttk, filedialog, messagebox
 import random
 from PIL import Image, ImageTk
 import os
 import sys
 import json
+
+def fit_window(root, min_w=800, min_h=700):
+    """Size the window to its content, then centre it.
+
+    The old hardcoded geometry assumed ~96 DPI. On a HiDPI display Tk scales
+    fonts up but not a fixed "800x900", so headers and buttons were clipped
+    outside the window and could not be clicked. Asking Tk how much room the
+    widgets actually need gets this right at any scaling factor.
+    """
+    root.update_idletasks()
+    w = max(root.winfo_reqwidth(), min_w)
+    h = max(root.winfo_reqheight(), min_h)
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    w, h = min(w, sw - 80), min(h, sh - 120)
+    root.geometry(f"{w}x{h}+{max(0,(sw-w)//2)}+{max(0,(sh-h)//2)}")
+    root.minsize(min(min_w, w), min(min_h, h))
 
 def get_config_path():
     """Get path for storing app configuration"""
@@ -26,13 +45,13 @@ class StudentNameGame:
         self.root.title("Student Name Learning Game")
         self.root.geometry("800x700")
         
-        # Dark theme colors
-        self.bg_color = "#2C3E50"  # Dark blue-gray
-        self.text_color = "#ECF0F1"  # Light gray
-        self.accent_color = "#3498DB"  # Blue
-        self.success_color = "#27AE60"  # Green
-        self.error_color = "#E74C3C"  # Red
-        self.hint_color = "#F1C40F"  # Yellow
+        # Shared palette (see theme.py) so quiz and study mode match
+        self.bg_color = theme.BG
+        self.text_color = theme.TEXT
+        self.accent_color = theme.ACCENT
+        self.success_color = "#3FB068"  # Green
+        self.error_color = theme.STOP
+        self.hint_color = "#E0B341"  # Amber
         
         self.root.configure(bg=self.bg_color)
         
@@ -94,8 +113,9 @@ class StudentNameGame:
             "Photos should be named: LastName_FirstName.jpg"
         )
         
-        folder = filedialog.askdirectory(
-            title="Select folder containing student photos"
+        folder = theme.ask_folder(
+            self.root, locals().get('saved_folder'),
+            "Select folder containing student photos"
         )
         
         if folder:
@@ -157,31 +177,17 @@ class StudentNameGame:
         # Shuffle the students for random order
         random.shuffle(self.remaining_students)
         
-        # Enable buttons with proper colors
-        if hasattr(self, 'submit_btn'):
-            self.submit_btn.config(
-                state="normal",
-                bg="#3498DB",
-                fg="#000000",
-                activebackground="#2980B9",
-                activeforeground="#000000"
-            )
-        if hasattr(self, 'hint_btn'):
-            self.hint_btn.config(
-                state="normal",
-                bg="#F39C12",
-                fg="#000000", 
-                activebackground="#E67E22",
-                activeforeground="#000000"
-            )
-        if hasattr(self, 'skip_btn'):
-            self.skip_btn.config(
-                state="normal",
-                bg="#E74C3C",
-                fg="#000000",
-                activebackground="#C0392B", 
-                activeforeground="#000000"
-            )
+        # Re-enable the buttons; the theme owns their colours
+        for name, primary in (('submit_btn', True), ('hint_btn', False), ('skip_btn', False)):
+            btn = getattr(self, name, None)
+            if btn is not None:
+                btn.config(
+                    state="normal",
+                    bg=theme.ACCENT if primary else theme.SURFACE,
+                    fg=theme.TEXT,
+                    activebackground=theme.ACCENT_ACTIVE if primary else theme.SURFACE_ACTIVE,
+                    activeforeground=theme.TEXT
+                )
         
         # Remove restart button if it exists
         if hasattr(self, 'restart_btn'):
@@ -219,55 +225,45 @@ class StudentNameGame:
         
         if completed_perfect == total_students:
             # Perfect game!
-            result_text = f"🎉 PERFECT GAME! 🎉\n\nYou completed all {total_students} students without using hints!\nLongest streak: {self.longest_streak}"
+            result_text = f"Perfect game\n\nYou completed all {total_students} students without using hints!\nLongest streak: {self.longest_streak}"
             color = self.success_color
         elif len(self.remaining_students) == 0:
             # Completed all but used some hints
-            result_text = f"🎯 Great job!\n\nCompleted all {total_students} students!\nPerfect (no hints): {completed_perfect}\nLongest streak: {self.longest_streak}"
+            result_text = f"Great job\n\nCompleted all {total_students} students!\nPerfect (no hints): {completed_perfect}\nLongest streak: {self.longest_streak}"
             color = self.accent_color
         else:
             # Game ended due to wrong answer
             wrong_name = self.current_student['name'] if self.current_student else 'Unknown'
-            result_text = f"💥 Game Over!\n\nYou missed: {wrong_name}\nCompleted: {total_students - len(self.remaining_students)}/{total_students}\nPerfect (no hints): {completed_perfect}\nLongest streak: {self.longest_streak}"
+            result_text = f"Game over\n\nYou missed: {wrong_name}\nCompleted: {total_students - len(self.remaining_students)}/{total_students}\nPerfect (no hints): {completed_perfect}\nLongest streak: {self.longest_streak}"
             color = self.error_color
         
         self.feedback_label.config(text=result_text, fg=color)
+        self.root.after_idle(lambda: fit_window(self.root, 800, 700))
         
         # Show restart button
-        self.restart_btn = tk.Button(
-            self.button_frame,
-            text="Start New Game",
-            command=self.start_new_game,
-            font=("Arial", 12, "bold"),
-            bg="#27AE60",  # Bright green
-            fg="#000000",  # Black text
-            activebackground="#1E8449",
-            activeforeground="#000000",  # Black text when active
-            disabledforeground="#666666",
-            relief="raised",
-            bd=2,
-            padx=20,
-            pady=10,
-            cursor="hand2"
+        if getattr(self, 'restart_btn', None) is not None:
+            self.restart_btn.destroy()
+        self.restart_btn = theme.button(
+            self.button_frame, "Start new game", self.start_new_game, primary=True
         )
-        self.restart_btn.pack(side=tk.LEFT, padx=10)
+        self.restart_btn.pack(side=tk.LEFT, padx=6)
         
         # Disable other buttons with proper styling
         self.submit_btn.config(
             state="disabled",
-            bg="#BDC3C7",  # Light gray when disabled
+            bg=theme.SURFACE,
             fg="#666666",  # Dark gray text when disabled
             disabledforeground="#666666"
         )
         self.hint_btn.config(
             state="disabled", 
-            bg="#BDC3C7",  # Light gray when disabled
+            bg=theme.SURFACE,
             fg="#666666",  # Dark gray text when disabled
             disabledforeground="#666666"
         )
         self.skip_btn.config(
             state="disabled",
-            bg="#BDC3C7",  # Light gray when disabled
+            bg=theme.SURFACE,
             fg="#666666",  # Dark gray text when disabled
             disabledforeground="#666666"
         )
@@ -293,11 +289,17 @@ class StudentNameGame:
         self.streak_label = tk.Label(
             self.info_frame, 
             text="Current Streak: 0 | Longest: 0", 
-            font=("Arial", 14, "bold"), 
+            font=theme.font(theme.SIZE_LABEL, "bold"), 
             bg=self.bg_color, 
             fg=self.text_color
         )
         self.streak_label.pack()
+
+        self.course_label = theme.label(
+            self.info_frame, theme.course_name(self.image_folder),
+            size=theme.SIZE_BODY, fg=theme.ACCENT
+        )
+        self.course_label.pack(pady=(2, 0))
         
         # Student photo display
         self.photo_frame = tk.Frame(self.root, bg=self.bg_color)
@@ -308,7 +310,7 @@ class StudentNameGame:
             bg=self.bg_color,
             text="Loading...",
             fg=self.text_color,
-            font=("Arial", 12)
+            font=theme.font(theme.SIZE_BODY)
         )
         self.photo_label.pack()
         
@@ -319,23 +321,23 @@ class StudentNameGame:
         tk.Label(
             self.input_frame, 
             text="Student's Name:", 
-            font=("Arial", 14), 
+            font=theme.font(theme.SIZE_LABEL), 
             bg=self.bg_color, 
             fg=self.text_color
         ).pack()
         
         self.name_entry = tk.Entry(
             self.input_frame, 
-            font=("Arial", 16),
+            font=theme.font(theme.SIZE_INPUT),
             width=20,
-            bg="#FFFFFF",  # White background
-            fg="#2C3E50",  # Dark text
-            insertbackground="#2C3E50",  # Dark cursor
-            relief="solid",
-            bd=2,
+            bg=theme.SURFACE,
+            fg=theme.TEXT,
+            insertbackground=theme.TEXT,
+            relief=tk.FLAT,
+            bd=0,
             highlightthickness=2,
-            highlightcolor="#3498DB",  # Blue highlight when focused
-            highlightbackground="#3498DB"  # Blue border to make it more visible
+            highlightcolor=theme.ACCENT,
+            highlightbackground=theme.BORDER
         )
         self.name_entry.pack(pady=10)
         self.name_entry.bind("<Return>", lambda e: self.check_answer())
@@ -349,12 +351,12 @@ class StudentNameGame:
         
         # Button style properties for consistency
         button_style = {
-            "font": ("Arial", 12, "bold"),
+            "font": theme.font(theme.SIZE_BODY, "bold"),
             "bg": self.accent_color,
             "fg": "white",
             "activebackground": "#2980B9",  # Darker blue when pressed
             "activeforeground": "white",
-            "disabledforeground": "#BDC3C7",  # Light gray when disabled
+            "disabledforeground": theme.MUTED,
             "relief": "flat",
             "bd": 0,
             "padx": 20,
@@ -365,77 +367,29 @@ class StudentNameGame:
             "highlightcolor": "white"
         }
         
-        self.submit_btn = tk.Button(
-            self.button_frame,
-            text="Submit Answer",
-            command=self.check_answer,
-            font=("Arial", 12, "bold"),
-            bg="#3498DB",  # Bright blue
-            fg="#000000",  # Black text
-            activebackground="#2980B9",
-            activeforeground="#000000",  # Black text when active
-            disabledforeground="#666666",
-            relief="raised",
-            bd=2,
-            padx=20,
-            pady=10,
-            cursor="hand2"
+        self.submit_btn = theme.button(
+            self.button_frame, "Submit", self.check_answer, primary=True,
+            disabledforeground=theme.MUTED
         )
-        self.submit_btn.pack(side=tk.LEFT, padx=10)
-        
-        self.hint_btn = tk.Button(
-            self.button_frame,
-            text="Get Hint",
-            command=self.show_hint,
-            font=("Arial", 12, "bold"),
-            bg="#F39C12",  # Orange
-            fg="#000000",  # Black text
-            activebackground="#E67E22",
-            activeforeground="#000000",  # Black text when active
-            disabledforeground="#666666",
-            relief="raised",
-            bd=2,
-            padx=20,
-            pady=10,
-            cursor="hand2"
+        self.submit_btn.pack(side=tk.LEFT, padx=6)
+
+        self.hint_btn = theme.button(
+            self.button_frame, "Hint", self.show_hint, primary=False,
+            disabledforeground=theme.MUTED
         )
-        self.hint_btn.pack(side=tk.LEFT, padx=10)
-        
-        self.skip_btn = tk.Button(
-            self.button_frame,
-            text="Skip (Game Over)",
-            command=self.skip_student,
-            font=("Arial", 12, "bold"),
-            bg="#E74C3C",  # Bright red
-            fg="#000000",  # Black text
-            activebackground="#C0392B",
-            activeforeground="#000000",  # Black text when active
-            disabledforeground="#666666",
-            relief="raised",
-            bd=2,
-            padx=20,
-            pady=10,
-            cursor="hand2"
+        self.hint_btn.pack(side=tk.LEFT, padx=6)
+
+        self.skip_btn = theme.button(
+            self.button_frame, "Skip", self.skip_student, primary=False,
+            disabledforeground=theme.MUTED
         )
-        self.skip_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Force button colors by updating after creation
-        def fix_button_colors():
-            try:
-                self.submit_btn.configure(bg="#3498DB", fg="#000000", activebackground="#2980B9", activeforeground="#000000")
-                self.hint_btn.configure(bg="#F39C12", fg="#000000", activebackground="#E67E22", activeforeground="#000000")
-                self.skip_btn.configure(bg="#E74C3C", fg="#000000", activebackground="#C0392B", activeforeground="#000000")
-            except:
-                pass
-        
-        # Apply colors immediately and again after a delay
-        fix_button_colors()
-        self.root.after(100, fix_button_colors)
+        self.skip_btn.pack(side=tk.LEFT, padx=6)
+
         # Feedback label
         self.feedback_label = tk.Label(
             self.root,
             text="",
-            font=("Arial", 14, "bold"),
+            font=theme.font(theme.SIZE_LABEL, "bold"),
             bg=self.bg_color,
             fg=self.text_color,
             wraplength=600
@@ -447,7 +401,7 @@ class StudentNameGame:
         self.stats_label = tk.Label(
             self.stats_frame,
             text=f"Total Students: {len(self.students)}",
-            font=("Arial", 10),
+            font=theme.font(theme.SIZE_SMALL),
             bg=self.bg_color,
             fg=self.text_color
         )
@@ -455,13 +409,15 @@ class StudentNameGame:
     
     def change_photo_folder(self):
         """Allow user to change the photo folder"""
-        folder = filedialog.askdirectory(
-            title="Select new folder containing student photos",
-            initialdir=self.image_folder
+        folder = theme.ask_folder(
+            self.root, self.image_folder,
+            "Select new folder containing student photos"
         )
         
         if folder and folder != self.image_folder:
             self.image_folder = folder
+            if hasattr(self, 'course_label'):
+                self.course_label.config(text=theme.course_name(folder))
             
             # Save new folder
             try:
@@ -487,15 +443,8 @@ class StudentNameGame:
     def load_and_display_image(self, image_path):
         """Load and display a student image"""
         try:
-            # Load and resize image
-            image = Image.open(image_path)
-            
-            # Calculate size to fit in 400x400 while maintaining aspect ratio
-            max_size = 400
-            image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-            
-            # Convert to PhotoImage for tkinter
-            photo = ImageTk.PhotoImage(image)
+            # Fixed square so the layout does not shift between students
+            photo = theme.photo(image_path)
             
             # Update the label
             self.photo_label.configure(image=photo, text="")
@@ -594,7 +543,7 @@ class StudentNameGame:
             hint_text = f"💡 The answer is: {name}"
             self.hint_btn.config(
                 state="disabled",
-                bg="#BDC3C7",  # Light gray when disabled
+                bg=theme.SURFACE,
                 fg="#666666",  # Dark gray text when disabled
                 disabledforeground="#666666"
             )
@@ -651,6 +600,7 @@ class StudentNameGame:
     
     def run(self):
         """Start the game"""
+        fit_window(self.root, 800, 700)
         self.root.mainloop()
 
 def main():
@@ -660,9 +610,11 @@ def main():
         try:
             if game.root.winfo_exists():
                 game.run()
-        except tk.TclError:
-            # Window was destroyed during initialization
-            pass
+        except tk.TclError as exc:
+            # A destroyed window during start-up is expected; anything else
+            # was being swallowed here and looked like the app just vanishing.
+            if "application has been destroyed" not in str(exc):
+                traceback.print_exc()
 
 if __name__ == "__main__":
     main()

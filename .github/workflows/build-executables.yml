@@ -28,7 +28,7 @@ jobs:
     
     - name: Build Windows executable
       run: |
-        pyinstaller --onefile --windowed --name "StudentNameGame" --add-data "student_name_flashcards.py;." --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk student_name_game.py
+        pyinstaller --onefile --windowed --name "StudentNameGame" --add-data "student_name_game.py;." --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk student_name_flashcards.py
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
@@ -55,7 +55,7 @@ jobs:
     
     - name: Build macOS .app (ARM64)
       run: |
-        pyinstaller --onedir --windowed --name "Student Name Learning Game" --osx-bundle-identifier "com.educator.studentnamegame" --add-data "student_name_flashcards.py:." --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch arm64 --clean student_name_game.py
+        pyinstaller --onedir --windowed --name "Student Name Learning Game" --osx-bundle-identifier "com.educator.studentnamegame" --add-data "student_name_game.py:." --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch arm64 --clean student_name_flashcards.py
     
     - name: Create DMG (ARM64)
       run: |
@@ -93,7 +93,7 @@ jobs:
     
     - name: Build macOS .app (Intel)
       run: |
-        pyinstaller --onedir --windowed --name "Student Name Learning Game" --osx-bundle-identifier "com.educator.studentnamegame" --add-data "student_name_flashcards.py:." --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch x86_64 --clean student_name_game.py
+        pyinstaller --onedir --windowed --name "Student Name Learning Game" --osx-bundle-identifier "com.educator.studentnamegame" --add-data "student_name_game.py:." --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch x86_64 --clean student_name_flashcards.py
     
     - name: Create DMG (Intel)
       run: |
@@ -136,7 +136,7 @@ jobs:
     
     - name: Build Linux executable
       run: |
-        pyinstaller --onefile --windowed --name "StudentNameGame" --add-data "student_name_flashcards.py:." --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk student_name_game.py
+        pyinstaller --onefile --windowed --name "StudentNameGame" --add-data "student_name_game.py:." --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk student_name_flashcards.py
     
     - name: Download AppImageTool
       run: |

@@ -33,7 +33,7 @@ def build_app():
         "--clean",
         "--noconfirm",
         # Add both Python files
-        "--add-data", "student_name_flashcards.py:.",
+        "--add-data", "student_name_game.py:.",
         # Add icon if it exists
     ]
     
@@ -53,7 +53,7 @@ def build_app():
         cmd.extend(["--hidden-import", imp])
     
     # Main script
-    cmd.append("student_name_game.py")
+    cmd.append("student_name_flashcards.py")
     
     try:
         subprocess.check_call(cmd)

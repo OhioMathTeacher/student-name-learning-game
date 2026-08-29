@@ -5,6 +5,8 @@ Shows student photos with their names so you can learn them
 """
 
 import tkinter as tk
+
+import theme
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import os
@@ -18,6 +20,22 @@ def get_config_path():
     if not os.path.exists(config_dir):
         os.makedirs(config_dir)
     return os.path.join(config_dir, "config.json")
+
+def fit_window(root, min_w=800, min_h=700):
+    """Size the window to its content, then centre it.
+
+    The old hardcoded geometry assumed ~96 DPI. On a HiDPI display Tk scales
+    fonts up but not a fixed "800x900", so headers and buttons were clipped
+    outside the window and could not be clicked. Asking Tk how much room the
+    widgets actually need gets this right at any scaling factor.
+    """
+    root.update_idletasks()
+    w = max(root.winfo_reqwidth(), min_w)
+    h = max(root.winfo_reqheight(), min_h)
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    w, h = min(w, sw - 80), min(h, sh - 120)
+    root.geometry(f"{w}x{h}+{max(0,(sw-w)//2)}+{max(0,(sh-h)//2)}")
+    root.minsize(min(min_w, w), min(min_h, h))
 
 def save_folder(folder):
     """Save the current folder to config"""
@@ -50,7 +68,7 @@ class StudentFlashcards:
         self.root = root
         self.root.title("Student Name Flashcards - Study Mode")
         self.root.geometry("800x900")
-        self.root.configure(bg='#2C3E50')
+        self.root.configure(bg=theme.BG)
         
         # Data
         self.students = []
@@ -72,7 +90,9 @@ class StudentFlashcards:
                 self.load_photos(default_folder)
             else:
                 self.choose_folder()
-    
+
+        fit_window(self.root, 900, 800)
+
     def create_widgets(self):
         # Menu bar
         menubar = tk.Menu(self.root)
@@ -82,173 +102,100 @@ class StudentFlashcards:
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Change Photo Folder", command=self.choose_folder)
         file_menu.add_separator()
-        file_menu.add_command(label="🎯 Switch to Quiz Mode", command=self.switch_to_quiz)
+        file_menu.add_command(label="Switch to Quiz Mode", command=self.switch_to_quiz)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
         
-        # Title
-        title_label = tk.Label(
-            self.root,
-            text="📚 Study Mode - Learn Student Names",
-            font=('Arial', 24, 'bold'),
-            bg='#2C3E50',
-            fg='white'
-        )
-        title_label.pack(pady=20)
-        
-        # Counter
-        self.counter_label = tk.Label(
-            self.root,
-            text="Student 0 of 0",
-            font=('Arial', 14),
-            bg='#2C3E50',
-            fg='#ECF0F1'
-        )
-        self.counter_label.pack(pady=5)
-        
-        # Photo frame
-        self.photo_frame = tk.Frame(self.root, bg='#2C3E50')
-        self.photo_frame.pack(pady=20)
-        
+        # ---- header -------------------------------------------------
+        header = tk.Frame(self.root, bg=theme.BG)
+        header.pack(fill=tk.X, padx=32, pady=(24, 8))
+
+        theme.label(header, "Study Mode", size=theme.SIZE_TITLE, weight="bold").pack(anchor="w")
+        theme.label(header, "Look at the face, then read the name.",
+                    size=theme.SIZE_BODY, fg=theme.MUTED).pack(anchor="w", pady=(2, 0))
+
+        self.course_label = theme.label(header, "", size=theme.SIZE_LABEL,
+                                        weight="bold", fg=theme.ACCENT)
+        self.course_label.place(relx=1.0, rely=0.0, anchor="ne")
+
+        tk.Frame(self.root, bg=theme.BORDER, height=1).pack(fill=tk.X, padx=32, pady=(12, 0))
+
+        # ---- photo ----------------------------------------------------
+        self.photo_frame = tk.Frame(self.root, bg=theme.BG)
+        self.photo_frame.pack(pady=(28, 0))
+
         self.photo_label = tk.Label(
             self.photo_frame,
-            bg='#34495E',
-            relief=tk.RAISED,
-            borderwidth=3
+            bg=theme.SURFACE,
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=theme.BORDER
         )
         self.photo_label.pack()
-        
-        # Name label (large and prominent)
+
         self.name_label = tk.Label(
             self.root,
             text="",
-            font=('Arial', 32, 'bold'),
-            bg='#2C3E50',
-            fg='#3498DB',
-            pady=20
+            font=theme.font(theme.SIZE_FEATURE, "bold"),
+            bg=theme.BG,
+            fg=theme.TEXT
         )
-        self.name_label.pack()
-        
-        # Control buttons frame
-        button_frame = tk.Frame(self.root, bg='#2C3E50')
-        button_frame.pack(pady=20)
-        
-        # Previous button
-        self.prev_btn = tk.Button(
-            button_frame,
-            text="◀ Previous",
-            command=self.previous_student,
-            font=('Arial', 14, 'bold'),
-            bg='#95A5A6',
-            fg='black',
-            padx=20,
-            pady=10,
-            relief=tk.RAISED,
-            borderwidth=3
-        )
-        self.prev_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Next button
-        self.next_btn = tk.Button(
-            button_frame,
-            text="Next ▶",
-            command=self.next_student,
-            font=('Arial', 14, 'bold'),
-            bg='#3498DB',
-            fg='black',
-            padx=20,
-            pady=10,
-            relief=tk.RAISED,
-            borderwidth=3
-        )
-        self.next_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Shuffle button
-        self.shuffle_btn = tk.Button(
-            button_frame,
-            text="🔀 Shuffle",
-            command=self.shuffle_students,
-            font=('Arial', 14, 'bold'),
-            bg='#9B59B6',
-            fg='black',
-            padx=20,
-            pady=10,
-            relief=tk.RAISED,
-            borderwidth=3
-        )
-        self.shuffle_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Change Folder button
-        self.folder_btn = tk.Button(
-            button_frame,
-            text="📁 Change Folder",
-            command=self.choose_folder,
-            font=('Arial', 14, 'bold'),
-            bg='#F39C12',
-            fg='black',
-            padx=20,
-            pady=10,
-            relief=tk.RAISED,
-            borderwidth=3
-        )
-        self.folder_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Auto-advance controls
-        auto_frame = tk.Frame(self.root, bg='#2C3E50')
-        auto_frame.pack(pady=10)
-        
-        self.auto_btn = tk.Button(
-            auto_frame,
-            text="▶ Auto-Advance",
-            command=self.toggle_auto_advance,
-            font=('Arial', 12, 'bold'),
-            bg='#27AE60',
-            fg='black',
-            padx=15,
-            pady=8,
-            relief=tk.RAISED,
-            borderwidth=2
-        )
-        self.auto_btn.pack(side=tk.LEFT, padx=10)
-        
-        # Speed control
-        tk.Label(
-            auto_frame,
-            text="Speed:",
-            font=('Arial', 12),
-            bg='#2C3E50',
-            fg='white'
-        ).pack(side=tk.LEFT, padx=5)
-        
+        self.name_label.pack(pady=(22, 4))
+
+        self.counter_label = theme.label(self.root, "Student 0 of 0",
+                                         size=theme.SIZE_BODY, fg=theme.MUTED)
+        self.counter_label.pack(pady=(0, 24))
+
+        # ---- primary controls ----------------------------------------
+        button_frame = tk.Frame(self.root, bg=theme.BG)
+        button_frame.pack()
+
+        self.prev_btn = theme.button(button_frame, "\u2039  Previous", self.previous_student)
+        self.prev_btn.pack(side=tk.LEFT, padx=6)
+
+        self.next_btn = theme.button(button_frame, "Next  \u203a", self.next_student, primary=True)
+        self.next_btn.pack(side=tk.LEFT, padx=6)
+
+        self.shuffle_btn = theme.button(button_frame, "Shuffle", self.shuffle_students)
+        self.shuffle_btn.pack(side=tk.LEFT, padx=6)
+
+        self.folder_btn = theme.button(button_frame, "Change folder", self.choose_folder)
+        self.folder_btn.pack(side=tk.LEFT, padx=6)
+
+        # ---- auto-advance --------------------------------------------
+        auto_frame = tk.Frame(self.root, bg=theme.BG)
+        auto_frame.pack(pady=(18, 0))
+
+        self.auto_btn = theme.button(auto_frame, "Auto-advance", self.toggle_auto_advance)
+        self.auto_btn.pack(side=tk.LEFT, padx=(0, 12))
+
+        theme.label(auto_frame, "every", size=theme.SIZE_BODY, fg=theme.MUTED).pack(side=tk.LEFT)
+
         self.speed_var = tk.StringVar(value="3")
-        speed_options = ["1", "2", "3", "4", "5", "7", "10"]
-        self.speed_menu = tk.OptionMenu(
-            auto_frame,
-            self.speed_var,
-            *speed_options,
-            command=self.update_speed
+        self.speed_menu = tk.OptionMenu(auto_frame, self.speed_var,
+                                        *["1", "2", "3", "4", "5", "7", "10"],
+                                        command=self.update_speed)
+        self.speed_menu.config(
+            font=theme.font(theme.SIZE_BODY), bg=theme.SURFACE, fg=theme.TEXT,
+            activebackground=theme.SURFACE_ACTIVE, activeforeground=theme.TEXT,
+            relief=tk.FLAT, bd=0, highlightthickness=1,
+            highlightbackground=theme.BORDER, cursor="hand2"
         )
-        self.speed_menu.config(font=('Arial', 12), bg='#34495E', fg='white')
-        self.speed_menu.pack(side=tk.LEFT, padx=5)
-        
-        tk.Label(
-            auto_frame,
-            text="seconds",
-            font=('Arial', 12),
-            bg='#2C3E50',
-            fg='white'
-        ).pack(side=tk.LEFT)
-        
-        # Keyboard shortcuts info
-        info_label = tk.Label(
+        self.speed_menu["menu"].config(bg=theme.SURFACE, fg=theme.TEXT,
+                                       activebackground=theme.ACCENT,
+                                       activeforeground=theme.TEXT, bd=0)
+        self.speed_menu.pack(side=tk.LEFT, padx=8)
+
+        theme.label(auto_frame, "seconds", size=theme.SIZE_BODY, fg=theme.MUTED).pack(side=tk.LEFT)
+
+        # ---- footer ---------------------------------------------------
+        theme.label(
             self.root,
-            text="⌨️ Shortcuts: Space=Next | Left Arrow=Previous | S=Shuffle | A=Auto",
-            font=('Arial', 11),
-            bg='#2C3E50',
-            fg='#95A5A6'
-        )
-        info_label.pack(pady=10)
-        
+            "Space next  \u00b7  \u2190 previous  \u00b7  S shuffle  \u00b7  A auto-advance",
+            size=theme.SIZE_SMALL, fg=theme.MUTED
+        ).pack(pady=(22, 18))
+
         # Bind keyboard shortcuts
         self.root.bind('<space>', lambda e: self.next_student())
         self.root.bind('<Left>', lambda e: self.previous_student())
@@ -257,7 +204,7 @@ class StudentFlashcards:
         self.root.bind('a', lambda e: self.toggle_auto_advance())
     
     def choose_folder(self):
-        folder = filedialog.askdirectory(title="Select folder with student photos")
+        folder = theme.ask_folder(self.root, load_folder())
         if folder:
             self.load_photos(folder)
     
@@ -271,10 +218,9 @@ class StudentFlashcards:
                 # Extract name from filename (handle both formats)
                 name_part = os.path.splitext(filename)[0]
                 if '_' in name_part:
-                    parts = name_part.split('_')
-                    # Could be LastName_FirstName or FirstName_LastName
-                    # We'll use the last part as the display name
-                    name = parts[-1] if len(parts) > 1 else parts[0]
+                    # Files are written LastName_FirstName, so show "First Last".
+                    last, _, first = name_part.partition('_')
+                    name = f"{first} {last}".strip() if first else last
                 else:
                     name = name_part
                 
@@ -286,9 +232,9 @@ class StudentFlashcards:
         if self.students:
             # Save this folder as the last used
             save_folder(folder)
+            self.course_label.config(text=theme.course_name(folder))
             self.current_index = 0
             self.show_current_student()
-            messagebox.showinfo("Success", f"Loaded {len(self.students)} student photos!")
         else:
             messagebox.showwarning("No Photos", "No photos found in the selected folder.")
     
@@ -305,10 +251,7 @@ class StudentFlashcards:
         
         # Load and display photo
         try:
-            img = Image.open(student['filepath'])
-            # Resize to fit (max 500x500)
-            img.thumbnail((500, 500), Image.Resampling.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
+            photo = theme.photo(student['filepath'])
             self.photo_label.config(image=photo)
             self.photo_label.image = photo  # Keep a reference
         except Exception as e:
@@ -339,16 +282,17 @@ class StudentFlashcards:
         random.shuffle(self.students)
         self.current_index = 0
         self.show_current_student()
-        messagebox.showinfo("Shuffled", "Students have been shuffled!")
     
     def toggle_auto_advance(self):
         self.auto_advance = not self.auto_advance
         
         if self.auto_advance:
-            self.auto_btn.config(text="⏸ Stop Auto", bg='#E74C3C')
+            self.auto_btn.config(text="Stop", bg=theme.STOP,
+                                 activebackground=theme.STOP_ACTIVE)
             self.auto_advance_step()
         else:
-            self.auto_btn.config(text="▶ Auto-Advance", bg='#27AE60')
+            self.auto_btn.config(text="Auto-advance", bg=theme.SURFACE,
+                                 activebackground=theme.SURFACE_ACTIVE)
             if self.after_id:
                 self.root.after_cancel(self.after_id)
                 self.after_id = None
