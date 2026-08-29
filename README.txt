@@ -1,13 +1,12 @@
 # Student Name Learning Game
 
-A comprehensive application to help teachers learn student names using photos,
-speech recognition, and intelligent difficulty analysis.
+A comprehensive application to help teachers learn student names using photos
+and intelligent difficulty analysis.
 
 ## Features
 
 ✅ **Quiz Mode**: Test your knowledge with scoring and progress tracking
 ✅ **Review Mode**: Auto-advancing slideshow with speed control and pause/resume
-✅ **Speech Recognition**: Say names out loud using your microphone
 ✅ **Smart Hints**: Progressive hints that get more specific
 ✅ **Fuzzy Matching**: Recognizes close answers like "Grace" for "Gracie"
 ✅ **Difficulty Analysis**: Identifies challenging students with personalized memory strategies
@@ -26,8 +25,6 @@ speech recognition, and intelligent difficulty analysis.
 ## System Requirements
 
 - Windows 10+ / Linux (Ubuntu 18.04+)
-- Microphone (optional, for speech recognition)
-- Speakers/headphones (optional, for text-to-speech feedback)
 
 ## Installation
 
@@ -36,8 +33,6 @@ or simply double-click the executable to run directly.
 
 ## Troubleshooting
 
-- If speech recognition doesn't work, check microphone permissions
 - If no student photos appear, ensure image files are in the correct folders
-- For audio issues, check system sound settings
 
 ## Version 1.0 - Created with ❤️ for educators

@@ -1,13 +1,12 @@
 # Student Name Learning Game 🎓📸
 
-A simple, clean educational tool designed to help teachers learn student names through photo-based practice with text-to-speech feedback.
+A simple, clean educational tool designed to help teachers learn student names through photo-based practice.
 
 ## 🌟 Features
 
 ### Core Functionality
 - **Random Student Photos**: Displays student photos from organized folders
 - **Text Input**: Type student names with immediate feedback
-- **Text-to-Speech**: Provides audio feedback when you get names right
 - **Simple Hints**: First letter hints when you're stuck
 - **Streak Tracking**: Shows your current correct streak
 
@@ -93,7 +92,7 @@ Learn the names! View photos with names displayed. Auto-advance through students
 1. **Load Photos**: Use File → Change Photo Folder to select your student photos
 2. **View Photos**: Student photos appear one at a time
 3. **Enter Names**: Type the student's first name in the text box
-4. **Get Feedback**: The app tells you if you're correct and speaks the name
+4. **Get Feedback**: The app tells you right away whether you got the name right
 5. **Use Hints**: Click "Get Hint" for the first letter of the name
 6. **Track Progress**: Your current streak is displayed at the top
 
@@ -109,12 +108,10 @@ Learn the names! View photos with names displayed. Auto-advance through students
 - Python 3.8+
 - tkinter (GUI framework - usually included with Python)
 - Pillow (Image processing)
-- pyttsx3 (Text-to-speech)
 
 ### System Requirements
 - **Cross-platform**: Windows, macOS, or Linux
 - **Display**: Minimum 800x600 resolution
-- **Audio**: Speakers or headphones for text-to-speech feedback
 
 ## 🎨 Customization
 
@@ -141,7 +138,6 @@ This tool is designed for educational use with student photos. Please:
 
 ### Common Issues
 - **Photos Not Loading**: Check that photos are in supported formats (JPG, PNG, etc.)
-- **No Text-to-Speech**: Audio drivers may need updating, but the app works fine without sound
 - **App Slow to Start**: Large photo folders may take a moment to load initially
 
 ## 🏗️ Building Executables

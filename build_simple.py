@@ -47,7 +47,6 @@ def build_app():
         'PIL',
         'PIL.Image',
         'PIL.ImageTk',
-        'pyttsx3',
     ]
     
     for imp in hidden_imports:
