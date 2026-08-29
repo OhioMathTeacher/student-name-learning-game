@@ -59,7 +59,7 @@ jobs:
     
     - name: Create DMG (ARM64)
       run: |
-        hdiutil create -volname "Student Name Learning Game" -srcfolder "dist/Student Name Learning Game.app" -ov -format UDZO "StudentNameGame-macOS-ARM64.dmg"
+        hdiutil create -volname "Name Game" -srcfolder "dist/Name Game.app" -ov -format UDZO "StudentNameGame-macOS-ARM64.dmg"
     
     - name: Upload macOS ARM64 DMG
       uses: actions/upload-artifact@v4
@@ -72,7 +72,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: macos-arm64-app
-        path: dist/Student Name Learning Game.app
+        path: dist/Name Game.app
         retention-days: 30
 
   build-linux:
@@ -98,7 +98,7 @@ jobs:
     
     - name: Build Linux executable
       run: |
-        pyinstaller --onefile --windowed --name "NameGame" --add-data "sample-roster;sample-roster" --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk name_game.py
+        pyinstaller --onefile --windowed --name "NameGame" --add-data "sample-roster:sample-roster" --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk name_game.py
     
     - name: Download AppImageTool
       run: |
