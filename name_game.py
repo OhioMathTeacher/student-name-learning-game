@@ -215,6 +215,7 @@ class QuizView(tk.Frame):
         self.used_hint = False
         self.hint_level = 0
         self.game_over = False
+        self.skips_left = 3
         self.restart_btn = None
         self._build()
 
@@ -282,6 +283,7 @@ class QuizView(tk.Frame):
         self.perfect = []
         self.streak = 0
         self.longest = 0
+        self.skips_left = 3
         self.game_over = False
         if self.restart_btn is not None:
             self.restart_btn.destroy()
@@ -358,10 +360,27 @@ class QuizView(tk.Frame):
         self.feedback.config(text=text, fg=theme.HINT)
 
     def skip(self):
+        """Three free skips a run; the fourth ends it.
+
+        A skipped student goes to the back of the queue rather than away, so
+        you still have to name them before the run is over.
+        """
         if not self.current or self.game_over:
             return
         self.streak = 0
-        self.feedback.config(text=f"Skipped — that was {self.current['name']}", fg=theme.STOP)
+        name = self.current["name"]
+        if self.skips_left > 0:
+            self.skips_left -= 1
+            self.remaining.append(self.remaining.pop(0))
+            left = self.skips_left
+            tail = (f"{left} skip{'s' if left != 1 else ''} left."
+                    if left else "No skips left.")
+            self.feedback.config(text=f"Skipped — that was {name}. {tail}",
+                                 fg=theme.HINT)
+            self.update_stats()
+            self.after(1200, self.next_student)
+            return
+        self.feedback.config(text=f"Out of skips — that was {name}", fg=theme.STOP)
         self.after(1500, self.finish)
 
     def finish(self):
@@ -399,7 +418,10 @@ class QuizView(tk.Frame):
         self.streak_label.config(
             text=f"Current streak {self.streak}  ·  longest {self.longest}")
         self.progress.config(
-            text=f"{done} of {total} named  ·  {len(self.perfect)} without a hint")
+            text=f"{done} of {total} named  ·  {len(self.perfect)} without a hint"
+                 f"  ·  {self.skips_left} skip{'s' if self.skips_left != 1 else ''} left")
+        self.skip_btn.config(
+            text="Skip  (Esc)" if self.skips_left else "Skip ends run  (Esc)")
 
     def on_return(self):
         if self.game_over:
