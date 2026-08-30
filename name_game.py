@@ -223,7 +223,7 @@ class QuizView(tk.Frame):
         header = tk.Frame(self, bg=theme.BG)
         header.pack(fill=tk.X, padx=32, pady=(24, 8))
         theme.label(header, "Quiz", size=theme.SIZE_TITLE, weight="bold").pack(anchor="w")
-        self.streak_label = theme.label(header, "Current streak 0  ·  longest 0",
+        self.streak_label = theme.label(header, "Streak 0  ·  this run 0  ·  all-time best 0",
                                         size=theme.SIZE_BODY, fg=theme.MUTED)
         self.streak_label.pack(anchor="w", pady=(2, 0))
 
@@ -415,8 +415,10 @@ class QuizView(tk.Frame):
     def update_stats(self):
         total = len(self.app.students)
         done = total - len(self.remaining)
+        all_time = theme.load_scores().get(self.app.section, {}).get("best", 0)
         self.streak_label.config(
-            text=f"Current streak {self.streak}  ·  longest {self.longest}")
+            text=f"Streak {self.streak}  ·  this run {self.longest}"
+                 f"  ·  all-time best {all_time}")
         self.progress.config(
             text=f"{done} of {total} named  ·  {len(self.perfect)} without a hint"
                  f"  ·  {self.skips_left} skip{'s' if self.skips_left != 1 else ''} left")
