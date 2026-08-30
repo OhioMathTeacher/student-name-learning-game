@@ -93,6 +93,10 @@ class StudyView(tk.Frame):
         speed.pack(side=tk.LEFT, padx=8)
         theme.label(auto_frame, "seconds", size=theme.SIZE_BODY, fg=theme.MUTED).pack(side=tk.LEFT)
 
+        self.streaks_label = theme.label(self, "", size=theme.SIZE_SMALL,
+                                         fg=theme.MUTED, justify="center")
+        self.streaks_label.pack(pady=(20, 0))
+
         theme.label(self, "Space next  ·  ← previous  ·  S shuffle  ·  A auto-advance",
                     size=theme.SIZE_SMALL, fg=theme.MUTED).pack(pady=(22, 18))
 
