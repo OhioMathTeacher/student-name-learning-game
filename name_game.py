@@ -103,6 +103,17 @@ class StudyView(tk.Frame):
 
     def on_show(self):
         self.show()
+        self.refresh_streaks()
+
+    def refresh_streaks(self):
+        """Longest streak so far, per section, from finished quiz runs."""
+        scores = theme.load_scores()
+        if not scores:
+            self.streaks_label.config(text="")
+            return
+        parts = [f"{name} last {v.get('last', 0)}, best {v.get('best', 0)}"
+                 for name, v in sorted(scores.items())]
+        self.streaks_label.config(text="Longest streaks  \u2014  " + "   \u00b7   ".join(parts))
 
     def on_hide(self):
         self.save_hint()
@@ -364,6 +375,8 @@ class QuizView(tk.Frame):
             text, colour = (f"Game over\n\nMissed {missed}\nCompleted {done} of {total}"
                             f"\nWithout hints {len(self.perfect)}"
                             f"\nLongest streak {self.longest}", theme.STOP)
+        theme.save_score(self.app.section, self.longest)
+        self.app.study.refresh_streaks()
         self.feedback.config(text=text, fg=colour)
         for btn in (self.submit_btn, self.hint_btn, self.skip_btn):
             btn.config(state="disabled", fg=theme.MUTED, bg=theme.SURFACE)
@@ -731,6 +744,7 @@ class NameGame:
         self.root.configure(bg=theme.BG)
         self.students = []
         self.folder = None
+        self.section = ""
 
         self.course_label = theme.label(root, "", size=theme.SIZE_LABEL,
                                         weight="bold", fg=theme.ACCENT)
@@ -872,7 +886,8 @@ class NameGame:
         self.folder = folder
         self.students = students
         roster.save_last_folder(folder)
-        self.course_label.config(text=theme.course_name(folder))
+        self.section = theme.course_name(folder)
+        self.course_label.config(text=self.section)
         for view in (self.study, self.quiz):
             view.on_roster_changed()
 

@@ -223,3 +223,44 @@ def fit_window(root, min_w=None, min_h=None):
 
     root.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 2)}")
     root.minsize(min(min_w, w), min(min_h, h))
+
+
+def _scores_path():
+    import os
+    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "scores.json")
+
+
+def load_scores():
+    """{section: {'last': n, 'best': n}} from finished quiz runs."""
+    import json
+    import os
+
+    p = _scores_path()
+    if not os.path.exists(p):
+        return {}
+    try:
+        with open(p, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_score(section, streak):
+    """Record a finished run: its streak, and the best seen for that section."""
+    import json
+
+    if not section:
+        return
+    scores = load_scores()
+    entry = scores.get(section) or {}
+    entry["last"] = int(streak)
+    entry["best"] = max(int(streak), int(entry.get("best", 0)))
+    scores[section] = entry
+    try:
+        with open(_scores_path(), "w", encoding="utf-8") as fh:
+            json.dump(scores, fh, indent=2, sort_keys=True)
+    except OSError:
+        pass
