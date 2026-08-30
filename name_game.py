@@ -322,6 +322,9 @@ class QuizView(tk.Frame):
         if answer and (answer == correct or self.close_enough(answer, correct)):
             self.streak += 1
             self.longest = max(self.longest, self.streak)
+            # Bank it now: quitting mid-run used to lose the whole streak.
+            theme.save_score(self.app.section, self.longest)
+            self.app.study.refresh_streaks()
             self.remaining.remove(self.current)
             if not self.used_hint:
                 self.perfect.append(self.current)
