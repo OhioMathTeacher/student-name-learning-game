@@ -37,140 +37,8 @@ jobs:
         path: dist/NameGame.exe
         retention-days: 30
 
-  build-macos-arm64:
-    runs-on: macos-latest  # Apple Silicon (M1/M2/M3)
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-    
-    - name: Build macOS .app (ARM64)
-      run: |
-        pyinstaller --onedir --windowed --name "Name Game" --add-data "sample-roster:sample-roster" --osx-bundle-identifier "com.educator.studentnamegame" --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch arm64 --clean name_game.py
-    
-    - name: Create DMG (ARM64)
-      run: |
-        hdiutil create -volname "Name Game" -srcfolder "dist/Name Game.app" -ov -format UDZO "StudentNameGame-macOS-ARM64.dmg"
-    
-    - name: Upload macOS ARM64 DMG
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-arm64-dmg
-        path: StudentNameGame-macOS-ARM64.dmg
-        retention-days: 30
-    
-    - name: Upload macOS ARM64 .app
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-arm64-app
-        path: dist/Name Game.app
-        retention-days: 30
-
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-tk python3-dev fuse libfuse2
-    
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-    
-    - name: Build Linux executable
-      run: |
-        pyinstaller --onefile --windowed --name "NameGame" --add-data "sample-roster:sample-roster" --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk name_game.py
-    
-    - name: Download AppImageTool
-      run: |
-        wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-        chmod +x appimagetool-x86_64.AppImage
-    
-    - name: Create AppImage structure
-      run: |
-        mkdir -p StudentNameGame.AppDir/usr/bin
-        mkdir -p StudentNameGame.AppDir/usr/share/applications
-        mkdir -p StudentNameGame.AppDir/usr/share/icons/hicolor/256x256/apps
-        
-        # Copy executable
-        cp dist/NameGame StudentNameGame.AppDir/usr/bin/
-        
-        # Create desktop file
-        cat > StudentNameGame.AppDir/usr/share/applications/studentnamegame.desktop << 'EOF'
-        [Desktop Entry]
-        Type=Application
-        Name=Student Name Learning Game
-        Exec=NameGame
-        Icon=studentnamegame
-        Categories=Education;
-        Comment=Learn student names through interactive flashcards and quizzes
-        EOF
-        
-        # Create AppRun script
-        cat > StudentNameGame.AppDir/AppRun << 'EOF'
-        #!/bin/bash
-        SELF=$(readlink -f "$0")
-        HERE=${SELF%/*}
-        export PATH="${HERE}/usr/bin/:${PATH}"
-        export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
-        exec "${HERE}/usr/bin/NameGame" "$@"
-        EOF
-        chmod +x StudentNameGame.AppDir/AppRun
-        
-        # Use app icon if available, otherwise create a simple icon
-        if [ -f "app_icon.png" ]; then
-          cp app_icon.png StudentNameGame.AppDir/usr/share/icons/hicolor/256x256/apps/studentnamegame.png
-          cp app_icon.png StudentNameGame.AppDir/studentnamegame.png
-        else
-          # Create a simple placeholder icon
-          convert -size 256x256 xc:blue -fill white -pointsize 120 -gravity center -annotate +0+0 'S' StudentNameGame.AppDir/studentnamegame.png
-          cp StudentNameGame.AppDir/studentnamegame.png StudentNameGame.AppDir/usr/share/icons/hicolor/256x256/apps/studentnamegame.png
-        fi
-        
-        # Copy desktop file to root
-        cp StudentNameGame.AppDir/usr/share/applications/studentnamegame.desktop StudentNameGame.AppDir/
-    
-    - name: Build AppImage
-      run: |
-        ./appimagetool-x86_64.AppImage StudentNameGame.AppDir StudentNameGame-Linux.AppImage
-      env:
-        ARCH: x86_64
-    
-    - name: Upload Linux AppImage
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-appimage
-        path: StudentNameGame-Linux.AppImage
-        retention-days: 30
-    
-    - name: Upload Linux executable
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-executable
-        path: dist/NameGame
-        retention-days: 30
-
   create-release:
-    needs: [build-windows, build-macos-arm64, build-linux]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
@@ -182,7 +50,5 @@ jobs:
       with:
         files: |
           windows-executable/NameGame.exe
-          macos-arm64-dmg/StudentNameGame-macOS-ARM64.dmg
-          linux-appimage/StudentNameGame-Linux.AppImage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
