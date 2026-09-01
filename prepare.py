@@ -117,6 +117,83 @@ def is_placeholder(path):
         return False
 
 
+# The page names the course but never the campus: two sections of one course
+# differ on it only by CRN. The folder someone saved the page into usually says.
+CAMPUSES = ("oxford", "hamilton", "middletown", "west chester", "luxembourg")
+
+
+def suggest_label(html_path, info=None):
+    """`318P-Hamilton` for a page saved at `.../318P/Hamilton/Photo Roster.html`.
+
+    Saving one page per section into a folder named after the campus is what
+    people already do, so read the campus back off the path rather than making
+    them retype it -- getting it wrong silently merges two sections into one.
+    """
+    info = info or read(html_path)
+    base = info["label"] or "section"
+    parts = os.path.normpath(os.path.dirname(os.path.abspath(html_path))).split(os.sep)
+    for part in reversed(parts[-3:]):
+        if part.lower() in CAMPUSES:
+            return f"{base}-{part.capitalize()}"
+    return base
+
+
+def find_pages(root, max_depth=4):
+    """Every saved roster page under `root`, page and image folder both intact.
+
+    People save a term's sections into one tree -- `Desktop/318P/Hamilton`,
+    `Desktop/318P/Oxford`, `Desktop/284` -- and then had to walk the import
+    wizard once per section. Finding them all lets that be one pass.
+    """
+    found = []
+    root = os.path.abspath(root)
+    depth0 = root.rstrip(os.sep).count(os.sep)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames
+                       if not d.startswith(".") and not d.endswith("_files")]
+        if dirpath.count(os.sep) - depth0 >= max_depth:
+            dirnames[:] = []
+        for name in sorted(filenames):
+            if name.lower().endswith((".html", ".htm")):
+                page = os.path.join(dirpath, name)
+                if os.path.isdir(files_dir(page)):
+                    found.append(page)
+    return found
+
+
+def plan(root, out_root):
+    """What a batch import would do, worked out before anything is written."""
+    jobs = []
+    for page in find_pages(root):
+        try:
+            info = read(page)
+        except OSError:
+            continue
+        if not info["students"]:
+            continue
+        label = suggest_label(page, info)
+        jobs.append({
+            "page": page,
+            "label": label,
+            "info": info,
+            "destination": destination_for(out_root, label),
+            "students": len(info["students"]),
+        })
+    return jobs
+
+
+def prepare_all(jobs):
+    """Run a plan. Returns each job with its outcome attached."""
+    done = []
+    for job in jobs:
+        try:
+            outcome = prepare(job["page"], None, None, _destination=job["destination"])
+            done.append({**job, "outcome": outcome, "error": None})
+        except OSError as exc:
+            done.append({**job, "outcome": None, "error": str(exc)})
+    return done
+
+
 def destination_for(out_root, label):
     """Where a prepared section lands: one folder per class, headshots inside.
 
@@ -133,7 +210,7 @@ def destination_for(out_root, label):
     return roster.section_dir(os.path.join(out_root, course or label), campus)
 
 
-def prepare(html_path, out_root, label):
+def prepare(html_path, out_root, label, _destination=None):
     """Copy the roster's photos into `out_root/label` with Name Game's naming.
 
     Returns the destination, how many were written, and the students who have
@@ -141,7 +218,7 @@ def prepare(html_path, out_root, label):
     the app never quizzes on a silhouette.
     """
     info = read(html_path)
-    destination = destination_for(out_root, label or info["label"])
+    destination = _destination or destination_for(out_root, label or info["label"])
     os.makedirs(destination, exist_ok=True)
 
     written, missing, seen = 0, [], {}
@@ -169,6 +246,28 @@ def prepare(html_path, out_root, label):
         "total": len(info["students"]),
         "info": info,
     }
+
+
+def prune_empty(folder, stop_at):
+    """Remove folders left behind empty by `discard`, up to but not past `stop_at`.
+
+    Deleting a page out of `Desktop/318P/Hamilton` otherwise leaves a pair of
+    empty folders sitting on the desktop looking like they still hold a roster.
+    Only genuinely empty folders go: anything still holding a file stays put.
+    """
+    stop_at = os.path.abspath(stop_at)
+    folder = os.path.abspath(folder)
+    removed = []
+    while folder != stop_at and folder.startswith(stop_at + os.sep):
+        try:
+            if os.listdir(folder):
+                break
+            os.rmdir(folder)
+        except OSError:
+            break
+        removed.append(folder)
+        folder = os.path.dirname(folder)
+    return removed
 
 
 def resolve(path):
