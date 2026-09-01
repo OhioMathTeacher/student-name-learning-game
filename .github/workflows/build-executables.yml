@@ -29,12 +29,18 @@ jobs:
     - name: Build Windows executable
       run: |
         pyinstaller --onefile --windowed --name "NameGame" --add-data "sample-roster;sample-roster" --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import PIL._tkinter_finder name_game.py
-    
+
+    - name: Build Roster Prep executable
+      run: |
+        pyinstaller --onefile --windowed --name "RosterPrep" --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import PIL._tkinter_finder roster_prep.py
+
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-executable
-        path: dist/NameGame.exe
+        path: |
+          dist/NameGame.exe
+          dist/RosterPrep.exe
         retention-days: 30
 
   build-macos-arm64:
@@ -56,10 +62,18 @@ jobs:
     - name: Build macOS .app (ARM64)
       run: |
         pyinstaller --onedir --windowed --name "Name Game" --add-data "sample-roster:sample-roster" --osx-bundle-identifier "com.educator.studentnamegame" --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch arm64 --clean name_game.py
-    
+
+    - name: Build Roster Prep .app (ARM64)
+      run: |
+        pyinstaller --onedir --windowed --name "Roster Prep" --osx-bundle-identifier "com.educator.rosterprep" --hidden-import tkinter --hidden-import tkinter.ttk --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --target-arch arm64 roster_prep.py
+
     - name: Create DMG (ARM64)
       run: |
-        hdiutil create -volname "Name Game" -srcfolder "dist/Name Game.app" -ov -format UDZO "StudentNameGame-macOS-ARM64.dmg"
+        # Both apps in one disk image: they are halves of one tool, and a
+        # teacher who takes only Name Game has no way to make photos for it.
+        mkdir -p dmg-staging
+        cp -R "dist/Name Game.app" "dist/Roster Prep.app" dmg-staging/
+        hdiutil create -volname "Name Game" -srcfolder dmg-staging -ov -format UDZO "StudentNameGame-macOS-ARM64.dmg"
     
     - name: Upload macOS ARM64 DMG
       uses: actions/upload-artifact@v4
@@ -68,15 +82,18 @@ jobs:
         path: StudentNameGame-macOS-ARM64.dmg
         retention-days: 30
     
-    - name: Zip the .app (ditto keeps permissions the bundle needs)
+    - name: Zip the .apps (ditto keeps permissions the bundles need)
       run: |
         ditto -c -k --keepParent "dist/Name Game.app" "NameGame-macOS-ARM64.zip"
+        ditto -c -k --keepParent "dist/Roster Prep.app" "RosterPrep-macOS-ARM64.zip"
     
     - name: Upload macOS ARM64 .app
       uses: actions/upload-artifact@v4
       with:
         name: macos-arm64-app
-        path: NameGame-macOS-ARM64.zip
+        path: |
+          NameGame-macOS-ARM64.zip
+          RosterPrep-macOS-ARM64.zip
         retention-days: 30
 
   create-release:
@@ -92,6 +109,7 @@ jobs:
       with:
         files: |
           windows-executable/NameGame.exe
+          windows-executable/RosterPrep.exe
           macos-arm64-dmg/StudentNameGame-macOS-ARM64.dmg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
