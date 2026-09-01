@@ -66,7 +66,9 @@ python name_game.py
 
 ```
 student-name-learning-game/
-├── name_game.py                     # the app: one window, Study + Quiz
+├── name_game.py                     # Name Game: one window, Study + Quiz
+├── roster_prep.py                   # Roster Prep: saved rosters -> photo folders
+├── prepare.py                       # reads a saved roster page, copies its photos
 ├── theme.py                         # palette, type scale, photo box, hints
 ├── roster.py                        # folder -> students, last-folder memory
 ├── build_simple.py                  # Local build script for macOS
@@ -88,10 +90,39 @@ Learn the names! View photos with names displayed. Auto-advance through students
 
 **Switch between them**: File → Study / Quiz, or Ctrl+Tab. Same window, no restart.
 
+## 📸 Getting your photos in
+
+Two apps ship together. **Roster Prep** builds the photo folders; **Name Game**
+practises from them. Roster Prep is a start-of-term job you do once.
+
+1. Open **Roster Prep** and click *Open my photo rosters*. Your registrar's
+   photo roster opens in the browser, where you are already signed in — there
+   is no API behind it and nothing to log into from the app.
+2. For each section: press **Ctrl+S** (**⌘S** on a Mac) and choose
+   **“Web Page, complete”** as the format. That saves the photos alongside the
+   page; *HTML only* does not. Save every section into one folder.
+3. Back in Roster Prep, click *Choose the folder…* and point it at that folder.
+   Every section under it is found at once.
+4. Check the plan. Each row shows the folder a section will be written to, and
+   the name is editable. **Two sections of one course must differ here** — the
+   roster page never says which campus it is, so both arrive labelled `318P`
+   and would merge into one roster. Saving each into a folder named after its
+   campus (`Desktop/318P/Hamilton`) gets this right automatically.
+5. Prepare them, then take the offer to delete the saved pages. Those pages
+   carry internal student ID numbers, not just names and faces.
+
+Photos land as `<root>/318P/headshots-hamilton/LastName_FirstName.jpg`, beside
+the rest of that class's material rather than inside the app — so the app can
+be rebuilt, moved or replaced without going near a student photo. Name Game
+finds them from there.
+
+Nothing is uploaded. Neither app touches the network except to open your
+roster in your own browser.
+
 ## 🎯 How to Use
 
 ### Basic Operation
-1. **Load Photos**: Use File → Change Photo Folder to select your student photos
+1. **Load Photos**: Use File → Open section, or File → Change photo folder
 2. **View Photos**: Student photos appear one at a time
 3. **Enter Names**: Type the student's first name in the text box
 4. **Get Feedback**: The app tells you right away whether you got the name right
