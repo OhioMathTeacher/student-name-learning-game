@@ -199,6 +199,32 @@ def describe(folder):
             "can read.\n\nIf your photos are in a subfolder, choose that instead.")
 
 
+def _roster_named(stem):
+    """`Smith_Alex`: a name this app wrote, rather than whatever a camera did."""
+    last, sep, first = stem.partition("_")
+    return bool(sep) and last[:1].isalpha() and first[:1].isalpha()
+
+
+def named_like_roster(students, need=0.7):
+    """Whether these files look like a class, rather than loose images.
+
+    `discover` guesses -- it walks into folders nobody pointed at -- and a guess
+    has to clear a bar an explicit choice does not. Two screenshots sitting on
+    the Desktop made it a class called "Desktop"; a folder of application
+    screenshots made it a class of three. Both were then announced as classes
+    found, which is worse than finding nothing: it buries the roster you do have
+    under names you have never taught, and in Roster Prep it stopped the real
+    saved roster beside them from ever being prepared.
+
+    Anything explicitly chosen still goes through `load`, which asks none of
+    this. The standard applies to guessing only.
+    """
+    if len(students) < 3:
+        return False
+    named = sum(1 for s in students if _roster_named(s["key"]))
+    return named >= need * len(students)
+
+
 SECTION_DIR = "headshots"
 
 # Never worth walking into looking for a class. A thumbdrive carries music and
@@ -273,14 +299,19 @@ def discover(root):
         """
         return name.lower().endswith("_files")
 
-    def add(path):
+    def add(path, named=False):
+        """`named` is a folder called `headshots`: somebody said so, so it counts.
+
+        Everywhere else this is guessing, and has to look like a class first.
+        """
         path = os.path.normpath(path)
         if path in sections or not os.path.isdir(path):
             return
         students = load(path)
-        if students:
-            sections[path] = {"label": course_name(path) or os.path.basename(path),
-                              "path": path, "count": len(students)}
+        if not students or not (named or named_like_roster(students)):
+            return
+        sections[path] = {"label": course_name(path) or os.path.basename(path),
+                          "path": path, "count": len(students)}
 
     add(root)                       # pointed straight at one section's photos
     for name in children(root):
@@ -291,7 +322,7 @@ def discover(root):
         add(classdir)               # a section folder sitting at the root
         for sub in children(classdir):
             if is_section_dir(sub):
-                add(os.path.join(classdir, sub))
+                add(os.path.join(classdir, sub), named=True)
 
     return sorted(sections.values(), key=lambda s: s["label"].lower())
 
