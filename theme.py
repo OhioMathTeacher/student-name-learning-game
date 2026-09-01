@@ -124,30 +124,6 @@ def photo(path, box=PHOTO_BOX, bg=SURFACE):
     return ImageTk.PhotoImage(mat)
 
 
-def course_name(folder):
-    """Human label for the loaded section, from its folder path.
-
-    Handles both layouts in use:
-        .../student-headshots/284              -> "284"
-        .../student-headshots/318P-Oxford      -> "318P Oxford"
-        .../Untitled/284/headshots             -> "284"
-        .../Untitled/318P/headshots-oxford     -> "318P Hamilton"/"318P Oxford"
-    """
-    import os
-
-    if not folder:
-        return ""
-    folder = os.path.normpath(folder)
-    base = os.path.basename(folder)
-    parent = os.path.basename(os.path.dirname(folder))
-
-    if base == "headshots":
-        return parent
-    if base.startswith("headshots-"):
-        return f"{parent} {base.split('-', 1)[1].capitalize()}".strip()
-    return base.replace("-", " ").replace("_", " ")
-
-
 # One window size for both modes, so switching between them does not resize.
 WINDOW_W = 960
 WINDOW_H = 1040

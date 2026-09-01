@@ -22,6 +22,8 @@ import os
 import re
 import shutil
 
+import roster
+
 # The registrar serves this exact image for a student with no photo on file.
 # Identified by content rather than by size, so a small real photo is not
 # mistaken for it.
@@ -44,6 +46,21 @@ def _attrs(tag):
 
 def _safe(part):
     return re.sub(r'[\\/:*?"<>|]', "", part).strip()
+
+
+def _extension(source):
+    """What to name the copy, when the saved photo has no extension of its own.
+
+    The registrar's image URLs carry no extension, so the browser writes bare
+    filenames and passing `splitext(source)[1]` through produced extensionless
+    copies. The app filtered those out by name, which is how a folder full of
+    faces reported "No photos found in that folder". Read the format out of the
+    bytes instead; JPEG is the registrar's format and the safe default.
+    """
+    extension = os.path.splitext(source)[1].lower()
+    if extension in roster.IMAGE_TYPES:
+        return extension
+    return roster.sniff(source) or ".jpg"
 
 
 def read(html_path):
@@ -100,6 +117,22 @@ def is_placeholder(path):
         return False
 
 
+def destination_for(out_root, label):
+    """Where a prepared section lands: one folder per class, headshots inside.
+
+        "284"          -> <out_root>/284/headshots
+        "318P-Oxford"  -> <out_root>/318P/headshots-oxford
+
+    Photos belong with the rest of a class's material, not in the application
+    folder -- the app should be replaceable without disturbing a single photo.
+    The campus suffix is what keeps two sections of one course apart, which the
+    roster page itself never distinguishes.
+    """
+    label = _safe(label)
+    course, _, campus = label.partition("-")
+    return roster.section_dir(os.path.join(out_root, course or label), campus)
+
+
 def prepare(html_path, out_root, label):
     """Copy the roster's photos into `out_root/label` with Name Game's naming.
 
@@ -108,7 +141,7 @@ def prepare(html_path, out_root, label):
     the app never quizzes on a silhouette.
     """
     info = read(html_path)
-    destination = os.path.join(out_root, _safe(label) or info["label"])
+    destination = destination_for(out_root, label or info["label"])
     os.makedirs(destination, exist_ok=True)
 
     written, missing, seen = 0, [], {}
@@ -121,7 +154,7 @@ def prepare(html_path, out_root, label):
         seen[stem] = seen.get(stem, 0) + 1
         if seen[stem] > 1:
             stem = f"{stem}-{seen[stem]}"
-        shutil.copy2(source, os.path.join(destination, stem + os.path.splitext(source)[1]))
+        shutil.copy2(source, os.path.join(destination, stem + _extension(source)))
         written += 1
 
     if missing:

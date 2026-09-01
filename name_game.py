@@ -713,7 +713,11 @@ class PrepareView(tk.Frame):
     def run(self):
         if not self.html_path:
             return
-        out_root = os.path.join(os.path.expanduser("~"), "Pictures", "student-headshots")
+        # Prepared photos join the class folders already in use, so a section
+        # lands beside that class's other material rather than in a fixed spot
+        # under home that the thumbdrive never sees.
+        out_root = self.app.photo_root or os.path.join(
+            os.path.expanduser("~"), "Pictures", "student-headshots")
         try:
             outcome = prepare.prepare(self.html_path, out_root, self.label_var.get())
         except OSError as exc:
@@ -724,6 +728,7 @@ class PrepareView(tk.Frame):
         prepare.remember_section(os.path.basename(outcome["folder"]),
                                  self.info.get("term"), self.info.get("crn"))
         self.app.refresh_roster_menu()
+        self.app.refresh_section_menu()
         self.result_headline.config(
             text=f"{outcome['written']} photos ready", fg=theme.OK)
         self.tidy_note.config(text="The saved roster page also holds student ID "
@@ -796,14 +801,21 @@ class NameGame:
         self.course_label.lift()   # the container is packed over it otherwise
 
         self.mode = tk.StringVar(value="study")
+        self.photo_root = None
         self._build_menu()
         self._bind_keys()
 
+        # Reopen last time's section outright. This used to be a yes/no dialog,
+        # which made sense when changing section meant a folder picker; now that
+        # File > Open section lists them all, the prompt was a keystroke asking
+        # permission to do the only sensible thing.
         folder = roster.load_last_folder()
-        if folder and messagebox.askyesno(
-            "Photo folder", f"Use the same photo folder as last time?\n\n{folder}"
-        ):
-            self.set_folder(folder)
+        if folder:
+            self.set_folder(folder, announce=False)
+        if not self.students:
+            found = roster.discover(self.photo_root) if self.photo_root else []
+            if len(found) == 1:
+                self.set_folder(found[0]["path"], announce=False)
 
         # A colleague opening this for the first time has no photos yet, so
         # start them on the screen that makes some rather than an empty picker.
@@ -821,7 +833,12 @@ class NameGame:
         file_menu.add_cascade(label="Open a roster in the browser",
                               menu=self.roster_menu)
         self.refresh_roster_menu()
+        self.section_menu = tk.Menu(file_menu, tearoff=0)
+        file_menu.add_cascade(label="Open section", menu=self.section_menu)
+        self.refresh_section_menu()
         file_menu.add_command(label="Change photo folder", command=self.choose_folder)
+        file_menu.add_command(label="Where classes live…",
+                              command=self.choose_photo_root)
         file_menu.add_separator()
         file_menu.add_radiobutton(label="Study", variable=self.mode, value="study",
                                   command=lambda: self.show("study"))
@@ -909,15 +926,63 @@ class NameGame:
         if folder:
             self.set_folder(folder)
 
-    def set_folder(self, folder):
+    def choose_photo_root(self):
+        """Point the app at the folder your class folders sit in."""
+        folder = theme.ask_folder(
+            self.root, self.photo_root or self.folder,
+            title="Folder holding your class folders")
+        if not folder:
+            return
+        found = roster.discover(folder)
+        if not found:
+            messagebox.showwarning(
+                "Name Game",
+                "No sections found there.\n\n"
+                "Expected a folder per class, each with a headshots folder "
+                "inside it:\n\n    284/headshots\n    318P/headshots-oxford")
+            return
+        roster.save_photo_root(folder)
+        self.refresh_section_menu()
+        messagebox.showinfo(
+            "Name Game",
+            f"{len(found)} sections found:\n\n"
+            + "\n".join(f"    {s['label']}  ({s['count']} photos)" for s in found))
+
+    def refresh_section_menu(self):
+        """Rebuild the section list from disk.
+
+        Rebuilt on every open rather than cached at launch, so a section shows
+        up the moment it is prepared instead of after a restart.
+        """
+        self.section_menu.delete(0, tk.END)
+        root, found = roster.find_sections()
+        self.photo_root = root
+        if not found:
+            self.section_menu.add_command(label="No sections found",
+                                          state="disabled")
+        for section in found:
+            self.section_menu.add_command(
+                label=f"{section['label']}   ({section['count']} photos)",
+                command=lambda path=section["path"]: self.set_folder(path))
+        self.section_menu.add_separator()
+        self.section_menu.add_command(label="Look again",
+                                      command=self.refresh_section_menu)
+
+    def set_folder(self, folder, announce=True):
         students = roster.load(folder)
         if not students:
-            messagebox.showwarning("Name Game", "No photos found in that folder.")
+            if announce:
+                messagebox.showwarning(
+                    "Name Game", "No photos loaded.\n\n" + roster.describe(folder))
             return
         self.folder = folder
         self.students = students
         roster.save_last_folder(folder)
-        self.section = theme.course_name(folder)
+        root = roster.root_for(folder)
+        if root and roster.discover(root):
+            roster.save_photo_root(root)
+            self.photo_root = root
+        self.section = roster.course_name(folder)
         self.course_label.config(text=self.section)
         for view in (self.study, self.quiz):
             view.on_roster_changed()
