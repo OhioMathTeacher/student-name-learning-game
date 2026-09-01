@@ -6,15 +6,16 @@ it and asks. They were separate programs, and switching modes actually quit one
 process and started another, which is why the window used to jump. Now they are
 two frames in the same window and switching just raises one.
 
-Photos are named LastName_FirstName.jpg in a folder per section.
+Photos are named LastName_FirstName.jpg in a folder per section. Building
+those folders is Roster Prep's job, in roster_prep.py -- a separate app,
+because it is a start-of-term task and this is a daily one.
 """
 
 import os
 import random
-import sys
 import webbrowser
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 
 import prepare
 import roster
@@ -432,192 +433,67 @@ class QuizView(tk.Frame):
             self.check()
 
 
-class PrepareView(tk.Frame):
-    """Build a photo folder from a roster page saved out of the browser.
+class WelcomeView(tk.Frame):
+    """What Name Game shows before there are any photos to practise with.
 
-    Three states, one at a time: choose a roster, confirm what was found, see
-    the result. Showing all three at once made a wall of text.
+    This used to be the whole import wizard. Preparing photos moved to Roster
+    Prep, a separate app: it is a start-of-term job done once, and it was the
+    largest screen in the app you open every day. What is left is the part
+    someone with no photos yet actually needs -- where photos come from, and a
+    way to try the thing without any.
     """
-
-    SAVE_KEY = "\u2318S" if sys.platform == "darwin" else "Ctrl+S"
-
-    HOW_TO = (
-        "In the browser \u2014 not in this app \u2014 with your photo roster open:\n\n"
-        f"Press {SAVE_KEY}, then choose \u201cWeb Page, complete\u201d as the format. "
-        "That saves the photos alongside the page; \u201cHTML only\u201d does not.\n\n"
-        "Some browsers also offer this as File \u2192 Save Page As, but most hide "
-        "that menu, so the keyboard shortcut is the reliable route.\n\n"
-        "Then come back here and choose whatever it saved \u2014 the page itself "
-        "or the folder beside it."
-    )
 
     def __init__(self, parent, app):
         super().__init__(parent, bg=theme.BG)
         self.app = app
-        self.html_path = None
-        self.info = None
-        self.prepared_folder = None
         self._build()
-        self._go("get")
 
-    # -- construction -------------------------------------------------
-    def _link(self, parent, text, command, bg=None, fg=None):
+    def _link(self, parent, text, command, fg=None):
         link = theme.label(parent, text, size=theme.SIZE_SMALL,
-                           fg=fg or theme.MUTED, bg=bg or theme.BG)
+                           fg=fg or theme.MUTED)
         link.configure(cursor="hand2")
         link.bind("<Button-1>", lambda _e: command())
         link.bind("<Enter>", lambda _e: link.configure(fg=theme.TEXT))
         link.bind("<Leave>", lambda _e: link.configure(fg=fg or theme.MUTED))
         return link
 
-    def _card(self, parent):
-        """A panel so the content reads as an object, not text adrift on navy."""
-        card = tk.Frame(parent, bg=theme.SURFACE, highlightthickness=1,
-                        highlightbackground=theme.BORDER)
-        card.pack(fill=tk.X, padx=40, pady=(28, 0))
-        inner = tk.Frame(card, bg=theme.SURFACE)
-        inner.pack(fill=tk.X, padx=30, pady=26)
-        return inner
-
     def _build(self):
-        header = tk.Frame(self, bg=theme.BG)
-        header.pack(fill=tk.X, padx=32, pady=(24, 8))
-        theme.label(header, "Prepare photos", size=theme.SIZE_TITLE,
-                    weight="bold").pack(anchor="w")
-        self.subtitle = theme.label(header, "", size=theme.SIZE_BODY, fg=theme.MUTED)
-        self.subtitle.pack(anchor="w", pady=(2, 0))
+        inner = tk.Frame(self, bg=theme.BG)
+        inner.place(relx=0.5, rely=0.42, anchor="center")
 
-        tk.Frame(self, bg=theme.BORDER, height=1).pack(fill=tk.X, padx=32, pady=(12, 0))
+        theme.label(inner, "No photos yet", size=theme.SIZE_FEATURE,
+                    weight="bold").pack()
+        theme.label(inner,
+                    "Name Game practises names from a folder of student photos.\n"
+                    "Roster Prep builds those folders from your photo rosters.",
+                    size=theme.SIZE_BODY, fg=theme.MUTED,
+                    justify="center").pack(pady=(10, 0))
 
-        body = tk.Frame(self, bg=theme.BG)
-        body.pack(fill=tk.BOTH, expand=True)
-        body.rowconfigure(0, weight=1)
-        body.columnconfigure(0, weight=1)
-
-        self.steps = {}
-        for name in ("get", "import", "confirm", "done"):
-            frame = tk.Frame(body, bg=theme.BG)
-            frame.grid(row=0, column=0, sticky="nsew")
-            self.steps[name] = frame
-
-        # --- choose
-        # --- step 1: get the roster out of the browser
-        card = self._card(self.steps["get"])
-        theme.label(card, "Step 1", size=theme.SIZE_SMALL, fg=theme.ACCENT,
-                    bg=theme.SURFACE).pack(anchor="w")
-        theme.label(card, "Get your roster", size=theme.SIZE_LABEL, weight="bold",
-                    bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
-        theme.label(card,
-                    "Opens the registrar's photo roster in your browser, where you are\n"
-                    f"already signed in. Save it there with {self.SAVE_KEY}, choosing\n"
-                    "\u201cWeb Page, complete\u201d.",
+        card = tk.Frame(inner, bg=theme.SURFACE, highlightthickness=1,
+                        highlightbackground=theme.BORDER)
+        card.pack(fill=tk.X, pady=(26, 0))
+        body = tk.Frame(card, bg=theme.SURFACE)
+        body.pack(padx=30, pady=24)
+        theme.label(body, "Prepare them in Roster Prep", size=theme.SIZE_LABEL,
+                    weight="bold", bg=theme.SURFACE).pack()
+        theme.label(body,
+                    "Roster Prep came alongside this app. Point it at the rosters\n"
+                    "you saved out of the browser and it prepares the whole term.",
                     size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
-                    justify="left").pack(anchor="w", pady=(0, 16))
-        theme.button(card, "Open my photo rosters", self.open_roster_app,
-                     primary=True).pack(anchor="w")
+                    justify="center").pack(pady=(6, 16))
+        theme.button(body, "Choose a photo folder\u2026", self.app.choose_folder,
+                     primary=True).pack()
+        theme.label(body, "\u2026if Roster Prep already made one.",
+                    size=theme.SIZE_SMALL, fg=theme.MUTED,
+                    bg=theme.SURFACE).pack(pady=(8, 0))
 
-        foot = tk.Frame(self.steps["get"], bg=theme.BG)
-        foot.pack(fill=tk.X, padx=40, pady=(14, 0))
-        self._link(foot, "What exactly do I save?",
-                   lambda: messagebox.showinfo("Saving the roster", self.HOW_TO)
-                   ).pack(side=tk.LEFT)
-        self._link(foot, "I already saved it  \u2192", lambda: self._go("import"),
-                   fg=theme.ACCENT).pack(side=tk.RIGHT)
+        foot = tk.Frame(inner, bg=theme.BG)
+        foot.pack(pady=(20, 0))
+        self._link(foot, "Where do my classes live?",
+                   self.app.choose_photo_root).pack(side=tk.LEFT)
         if roster.sample_folder():
-            self._link(foot, "Try it with 5 sample students",
-                       self.load_sample).pack(side=tk.LEFT, padx=(24, 0))
-
-        # --- step 2: import what the browser saved
-        card = self._card(self.steps["import"])
-        theme.label(card, "Step 2", size=theme.SIZE_SMALL, fg=theme.ACCENT,
-                    bg=theme.SURFACE).pack(anchor="w")
-        theme.label(card, "Import it here", size=theme.SIZE_LABEL, weight="bold",
-                    bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
-        theme.label(card,
-                    f"In the browser: {self.SAVE_KEY}, format \u201cWeb Page, complete\u201d.\n"
-                    "Then choose what it saved \u2014 the page, or the folder beside it.",
-                    size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
-                    justify="left").pack(anchor="w", pady=(0, 16))
-        theme.button(card, "Choose saved roster\u2026", self.choose_page,
-                     primary=True).pack(anchor="w")
-
-        foot = tk.Frame(self.steps["import"], bg=theme.BG)
-        foot.pack(fill=tk.X, padx=40, pady=(14, 0))
-        self._link(foot, "\u2190  back to step 1", lambda: self._go("get")).pack(side=tk.LEFT)
-
-        # --- confirm
-        confirm = self.steps["confirm"]
-        inner = tk.Frame(confirm, bg=theme.BG)
-        inner.place(relx=0.5, rely=0.42, anchor="center")
-        self.course_line = theme.label(inner, "", size=theme.SIZE_LABEL, weight="bold")
-        self.course_line.pack()
-        self.detail_line = theme.label(inner, "", size=theme.SIZE_BODY, fg=theme.MUTED)
-        self.detail_line.pack(pady=(4, 22))
-
-        theme.label(inner, "Save these photos as", size=theme.SIZE_SMALL,
-                    fg=theme.MUTED).pack()
-        self.label_var = tk.StringVar()
-        self.label_entry = tk.Entry(
-            inner, textvariable=self.label_var, width=26, justify="center",
-            font=theme.font(theme.SIZE_BODY), bg=theme.SURFACE, fg=theme.TEXT,
-            insertbackground=theme.TEXT, relief=tk.FLAT, bd=0, highlightthickness=1,
-            highlightbackground=theme.BORDER, highlightcolor=theme.ACCENT
-        )
-        self.label_entry.pack(ipady=6, pady=(6, 4))
-        self.campus_hint = theme.label(inner, "", size=theme.SIZE_SMALL, fg=theme.MUTED)
-        self.campus_hint.pack()
-
-        steps_text = (
-            "Reads the names off the page, copies each photo as "
-            "LastName_FirstName,\nskips anyone the roster has no photo for, and "
-            "writes them to your Pictures folder."
-        )
-        theme.label(inner, steps_text, size=theme.SIZE_SMALL, fg=theme.MUTED,
-                    justify="center").pack(pady=(18, 0))
-        theme.button(inner, "Prepare photos", self.run, primary=True).pack(pady=(14, 0))
-        self._link(inner, "Choose a different roster", self.choose_page).pack(pady=(12, 0))
-
-        # --- done
-        done = self.steps["done"]
-        inner = tk.Frame(done, bg=theme.BG)
-        inner.place(relx=0.5, rely=0.42, anchor="center")
-        self.result_headline = theme.label(inner, "", size=theme.SIZE_FEATURE,
-                                           weight="bold")
-        self.result_headline.pack()
-        self.result_path = theme.label(inner, "", size=theme.SIZE_SMALL, fg=theme.MUTED,
-                                       wraplength=700, justify="center")
-        self.result_path.pack(pady=(8, 0))
-        self.result_missing = theme.label(inner, "", size=theme.SIZE_SMALL,
-                                          fg=theme.MUTED, wraplength=700,
-                                          justify="center")
-        self.result_missing.pack(pady=(14, 0))
-        theme.button(inner, "Open it in Study", self.open_result,
-                     primary=True).pack(pady=(24, 0))
-
-        self.tidy_note = theme.label(
-            inner,
-            "The saved roster page also holds student ID numbers.\n"
-            "You do not need it any more.",
-            size=theme.SIZE_SMALL, fg=theme.MUTED, justify="center")
-        self.tidy_note.pack(pady=(22, 4))
-        self.tidy_link = self._link(inner, "Delete the saved roster page",
-                                    self.discard_source)
-        self.tidy_link.pack()
-
-        self._link(inner, "Prepare another section",
-                   lambda: self._go("get")).pack(pady=(16, 0))
-
-        theme.label(self, "Photos stay on this computer. Nothing is uploaded.",
-                    size=theme.SIZE_SMALL, fg=theme.MUTED).pack(side=tk.BOTTOM, pady=18)
-
-    def _go(self, step):
-        self.subtitle.config(text={
-            "get": "First, save your roster out of the browser.",
-            "import": "Now bring that saved roster in here.",
-            "confirm": "Check this is the right section, then name the folder.",
-            "done": "Ready to practise.",
-        }[step])
-        self.steps[step].tkraise()
+            self._link(foot, "Try it with 5 sample students", self.load_sample,
+                       fg=theme.ACCENT).pack(side=tk.LEFT, padx=(24, 0))
 
     # -- lifecycle ----------------------------------------------------
     def on_show(self):
@@ -629,147 +505,14 @@ class PrepareView(tk.Frame):
     def on_roster_changed(self):
         pass
 
-    def handles_typing(self, widget):
-        return widget is self.label_entry
-
-    # -- actions ------------------------------------------------------
-    def open_roster_app(self):
-        """Tell them what to do over there before sending them over there.
-
-        The instruction is useless once they are looking at the browser and this
-        window is behind it, so it goes in front of them first.
-        """
-        if not messagebox.askokcancel(
-            "Opening your roster",
-            "Your photo rosters open in the browser next.\n\n"
-            "Pick the section you want, then press "
-            f"{self.SAVE_KEY} and choose \u201cWeb Page, complete\u201d "
-            "as the format \u2014 that saves the photos as well as the page.\n\n"
-            "Then come back to this window.",
-            icon=messagebox.INFO,
-        ):
-            return
-        webbrowser.open(prepare.ROSTER_APP)
-        # They have gone to the browser to save it; be waiting on step 2.
-        self._go("import")
+    def handles_typing(self, _widget):
+        return False
 
     def load_sample(self):
         """Open the bundled fictional roster, so the app can show what it does."""
         folder = roster.sample_folder()
         if folder:
             self.app.set_folder(folder)
-            self.app.show("study")
-
-    def choose_page(self):
-        picked = filedialog.askopenfilename(
-            parent=self.app.root,
-            title="Choose the saved roster",
-            initialdir=next((d for d in (
-                os.path.expanduser("~/Desktop"), os.path.expanduser("~/Downloads"),
-                os.path.expanduser("~")) if os.path.isdir(d)), None),
-            filetypes=[("Saved web page", "*.html *.htm"), ("All files", "*.*")],
-        )
-        if not picked:
-            return
-
-        path = prepare.resolve(picked)
-        if not path:
-            messagebox.showwarning(
-                "Prepare photos",
-                "That does not look like a saved roster.\n\n"
-                "Choose the .html file the browser saved, or the folder next to it."
-            )
-            return
-
-        try:
-            info = prepare.read(path)
-        except OSError as exc:
-            messagebox.showerror("Prepare photos", f"Could not read that page.\n\n{exc}")
-            return
-
-        if not info["students"] or not info["files_dir_exists"]:
-            messagebox.showwarning(
-                "Prepare photos",
-                "No photos found with that page.\n\n"
-                "It needs to be saved as \u201cWeb Page, complete\u201d, which also "
-                "saves a folder of images beside it."
-            )
-            return
-
-        self.html_path, self.info = path, info
-        self.course_line.config(
-            text=f"{info['number']}: {info['title']}" if info["number"] else "Roster")
-        bits = [f"CRN {info['crn']}"] if info["crn"] else []
-        if info["term"]:
-            bits.append(f"term {info['term']}")
-        bits.append(f"{len(info['students'])} students")
-        self.detail_line.config(text="  \u00b7  ".join(bits))
-        self.label_var.set(info["label"])
-        self.campus_hint.config(
-            text=f"Teaching two sections of {info['number'] or 'this course'}? "
-                 "Add the campus." if info["number"] else "")
-        self._go("confirm")
-
-    def run(self):
-        if not self.html_path:
-            return
-        # Prepared photos join the class folders already in use, so a section
-        # lands beside that class's other material rather than in a fixed spot
-        # under home that the thumbdrive never sees.
-        out_root = self.app.photo_root or os.path.join(
-            os.path.expanduser("~"), "Pictures", "student-headshots")
-        try:
-            outcome = prepare.prepare(self.html_path, out_root, self.label_var.get())
-        except OSError as exc:
-            messagebox.showerror("Prepare photos", f"Could not write the photos.\n\n{exc}")
-            return
-
-        self.prepared_folder = outcome["folder"]
-        prepare.remember_section(os.path.basename(outcome["folder"]),
-                                 self.info.get("term"), self.info.get("crn"))
-        self.app.refresh_roster_menu()
-        self.app.refresh_section_menu()
-        self.result_headline.config(
-            text=f"{outcome['written']} photos ready", fg=theme.OK)
-        self.tidy_note.config(text="The saved roster page also holds student ID "
-                                   "numbers.\nYou do not need it any more.")
-        self.tidy_link.pack()
-        self.result_path.config(text=outcome["folder"])
-        if outcome["missing"]:
-            self.result_missing.config(
-                text="No photo on the roster for "
-                     + ", ".join(sorted(outcome["missing"]))
-                     + ". Listed in NO-PHOTO.txt.")
-        else:
-            self.result_missing.config(text="")
-        self._go("done")
-
-    def discard_source(self):
-        """Offer to remove the saved page now the photos are copied out."""
-        if not self.html_path or not os.path.exists(self.html_path):
-            return
-        page, folder = prepare.saved_pair(self.html_path)
-        if not messagebox.askyesno(
-            "Delete the saved roster",
-            "Delete these? The photos you just prepared are not affected.\n\n"
-            f"{page}\n{folder}\n\n"
-            "The page holds student ID numbers as well as names and photos, "
-            "so it is worth not leaving it around."
-        ):
-            return
-        try:
-            prepare.discard(self.html_path)
-        except OSError as exc:
-            messagebox.showerror("Delete the saved roster",
-                                 f"Could not delete it.\n\n{exc}")
-            return
-        self.html_path = None
-        self.tidy_note.config(text="Saved roster deleted.")
-        self.tidy_link.pack_forget()
-
-    def open_result(self):
-        if self.prepared_folder:
-            self.app.set_folder(self.prepared_folder)
             self.app.show("study")
 
 
@@ -795,8 +538,8 @@ class NameGame:
 
         self.study = StudyView(container, self)
         self.quiz = QuizView(container, self)
-        self.prepare_view = PrepareView(container, self)
-        for view in (self.study, self.quiz, self.prepare_view):
+        self.welcome = WelcomeView(container, self)
+        for view in (self.study, self.quiz, self.welcome):
             view.grid(row=0, column=0, sticky="nsew")
         self.course_label.lift()   # the container is packed over it otherwise
 
@@ -819,7 +562,7 @@ class NameGame:
 
         # A colleague opening this for the first time has no photos yet, so
         # start them on the screen that makes some rather than an empty picker.
-        self.show("study" if self.students else "prepare")
+        self.show("study" if self.students else "welcome")
         theme.fit_window(self.root)
 
     def _build_menu(self):
@@ -827,8 +570,8 @@ class NameGame:
         self.root.config(menu=menubar)
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Prepare photos from a saved roster\u2026",
-                              command=lambda: self.show("prepare"))
+        file_menu.add_command(label="Where photos come from\u2026",
+                              command=lambda: self.show("welcome"))
         self.roster_menu = tk.Menu(file_menu, tearoff=0)
         file_menu.add_cascade(label="Open a roster in the browser",
                               menu=self.roster_menu)
@@ -844,8 +587,8 @@ class NameGame:
                                   command=lambda: self.show("study"))
         file_menu.add_radiobutton(label="Quiz", variable=self.mode, value="quiz",
                                   command=lambda: self.show("quiz"))
-        file_menu.add_radiobutton(label="Prepare photos", variable=self.mode,
-                                  value="prepare", command=lambda: self.show("prepare"))
+        file_menu.add_radiobutton(label="Welcome", variable=self.mode,
+                                  value="welcome", command=lambda: self.show("welcome"))
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
 
@@ -888,7 +631,7 @@ class NameGame:
             self.quiz.on_return()
         return "break"
 
-    VIEWS = ("study", "quiz", "prepare")
+    VIEWS = ("study", "quiz", "welcome")
 
     def refresh_roster_menu(self):
         """List sections already imported, so their roster is one click away."""
@@ -905,7 +648,7 @@ class NameGame:
             )
 
     def current_view(self):
-        return {"quiz": self.quiz, "prepare": self.prepare_view}.get(
+        return {"quiz": self.quiz, "welcome": self.welcome}.get(
             self.mode.get(), self.study)
 
     def show(self, mode):
