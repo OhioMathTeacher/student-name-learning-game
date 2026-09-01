@@ -94,8 +94,8 @@ class RosterPrep(tk.Frame):
         self.root.config(menu=menubar)
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Prepare a whole term…",
-                              command=self.choose_batch)
+        file_menu.add_command(label="Choose a photo folder…",
+                              command=self.choose_folder)
         file_menu.add_command(label="Prepare one saved page…",
                               command=self.choose_single)
         file_menu.add_separator()
@@ -146,7 +146,7 @@ class RosterPrep(tk.Frame):
         card = self._card(self.steps["start"])
         theme.label(card, "Step 1", size=theme.SIZE_SMALL, fg=theme.ACCENT,
                     bg=theme.SURFACE).pack(anchor="w")
-        theme.label(card, "Save your rosters out of the browser",
+        theme.label(card, "Need photos? Save your rosters out of the browser",
                     size=theme.SIZE_LABEL, weight="bold",
                     bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
         theme.label(card,
@@ -163,16 +163,18 @@ class RosterPrep(tk.Frame):
         card = self._card(self.steps["start"])
         theme.label(card, "Step 2", size=theme.SIZE_SMALL, fg=theme.ACCENT,
                     bg=theme.SURFACE).pack(anchor="w")
-        theme.label(card, "Bring the whole term in at once",
+        theme.label(card, "Tell me where your photos are",
                     size=theme.SIZE_LABEL, weight="bold",
                     bg=theme.SURFACE).pack(anchor="w", pady=(2, 8))
         theme.label(card,
-                    "Choose the folder you saved them into. Every section under it "
-                    "is found\n"
-                    "and prepared in one pass, and you get to check the plan first.",
+                    "Any folder. Rosters you saved from the browser get prepared \u2014 "
+                    "every\n"
+                    "section under it, in one pass, with the plan shown first. Photos "
+                    "that are\n"
+                    "already prepared are simply used.",
                     size=theme.SIZE_SMALL, fg=theme.MUTED, bg=theme.SURFACE,
                     justify="left").pack(anchor="w", pady=(0, 16))
-        theme.button(card, "Choose the folder…", self.choose_batch,
+        theme.button(card, "Choose the folder…", self.choose_folder,
                      primary=True).pack(anchor="w")
 
         foot = tk.Frame(self.steps["start"], bg=theme.BG)
@@ -325,13 +327,24 @@ class RosterPrep(tk.Frame):
         if self.jobs:
             self.rebuild_plan()
 
-    def choose_batch(self):
+    def choose_folder(self):
+        """Ask where the photos are, and take whatever is there.
+
+        One question, not two. A folder can hold photos already prepared or
+        rosters saved out of the browser, and which one it is was never the
+        user's problem to answer -- the app can look. Sorting that out here,
+        before anything is refused, is why "no saved roster pages" no longer
+        greets a folder full of faces.
+        """
         folder = theme.ask_folder(
-            self.root, self.searched,
-            title="Folder holding the rosters you saved")
+            self.root, self.searched, title="Where are your photos?")
         if not folder:
             return
         self.searched = folder
+
+        if self.take_prepared(folder):
+            return
+
         jobs = prepare.plan(folder, self.out_root)
         if not jobs:
             self.report_nothing_found(folder)
@@ -339,6 +352,38 @@ class RosterPrep(tk.Frame):
         self.jobs = jobs
         self.rebuild_plan()
         self._go("plan")
+
+    # Kept: the File menu and the old wording both reached for this name.
+    choose_batch = choose_folder
+
+    def take_prepared(self, folder):
+        """Photos already prepared: accept them and say so. True if taken."""
+        prepared = roster.discover(folder)
+        if not prepared:
+            return False
+
+        # Which of the two things was handed over decides the root. One
+        # section's photos sit inside a class folder, so the root is two levels
+        # up; the folder holding the class folders is already the root. Taking
+        # root_for either way put the drive's parent -- /run/media/todd -- in
+        # the config when the drive itself was chosen.
+        if roster.load(folder):
+            root = roster.root_for(folder) or folder
+            opens = folder
+        else:
+            root = folder
+            opens = prepared[0]["path"]
+        roster.save_photo_root(root)
+        roster.save_last_folder(opens)
+        self.out_root = root
+        self.refresh_destination()
+        sections = roster.discover(root) or prepared
+        listing = "\n".join(f"\u2022  {s['label']} \u2014 {s['count']} photos"
+                            for s in sections[:8])
+        messagebox.showinfo(
+            "Roster Prep",
+            f"Using these. Name Game opens them now.\n\n{listing}")
+        return True
 
     def choose_single(self):
         """One saved page, for adding a section mid-term."""
@@ -402,26 +447,6 @@ class RosterPrep(tk.Frame):
         with no images beside it. Both look identical from a bare "no rosters
         found", and neither is guessable from it.
         """
-        prepared = roster.discover(folder)
-        if prepared:
-            # Photos, handed over directly. Take them: the folder is the
-            # answer, not a thing to be quizzed about. Asking permission to
-            # accept what was just chosen is the same refusal in a politer
-            # voice.
-            root = roster.root_for(folder) or folder
-            roster.save_photo_root(root)
-            roster.save_last_folder(folder if roster.load(folder)
-                                    else prepared[0]["path"])
-            self.out_root = root
-            self.refresh_destination()
-            sections = roster.discover(root) or prepared
-            listing = "\n".join(f"\u2022  {s['label']} \u2014 {s['count']} photos"
-                                for s in sections[:8])
-            messagebox.showinfo(
-                "Roster Prep",
-                f"Using these. Name Game opens them now.\n\n{listing}")
-            return
-
         pages = []
         for dirpath, dirnames, filenames in os.walk(folder):
             dirnames[:] = [d for d in dirnames if not d.startswith(".")]
