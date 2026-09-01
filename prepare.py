@@ -10,7 +10,9 @@ you:
 
 That writes `Photo Roster-something.html` next to a `Photo Roster-something_files`
 folder holding every photo at full size. This module reads the pair and writes
-`LastName_FirstName.jpg` files, which is the naming Name Game expects.
+`First_Last_Course_Location.jpg` files into one folder, which is all Name Game
+needs: the name and the class are both in the filename, so every section can
+share a folder and picking a class is a filter rather than a different folder.
 
 Nothing here touches the network. The photos are student records: they stay on
 the machine that prepared them.
@@ -83,10 +85,6 @@ def _attrs(tag):
     return {k.lower(): html_mod.unescape(v) for k, v in ATTR.findall(tag)}
 
 
-def _safe(part):
-    return re.sub(r'[\\/:*?"<>|]', "", part).strip()
-
-
 def _extension(source):
     """What to name the copy, when the saved photo has no extension of its own.
 
@@ -122,17 +120,15 @@ def read(html_path):
         if not alt or not src:
             continue
         last, _, first = alt.partition(",")
-        found.append((
-            f"{_safe(first)} {_safe(last)}".strip(),
-            f"{_safe(last)}_{_safe(first)}" if first.strip() else _safe(last),
-            os.path.basename(src.replace("%20", " ").split("/")[-1]),
-        ))
+        found.append((roster.clean(first), roster.clean(last),
+                      os.path.basename(src.replace("%20", " ").split("/")[-1])))
 
     directory = image_dir(html_path, found[0][2] if found else None)
 
-    students = [{"name": name, "stem": stem,
-                 "source": os.path.join(directory, filename)}
-                for name, stem, filename in found]
+    students = [{"first": first, "last": last,
+                 "name": f"{first} {last}".strip(),
+                 "source": os.path.join(directory, image)}
+                for first, last, image in found]
 
     # Default folder name: the course number alone. Two sections of the same
     # course differ only by CRN on this page -- no campus anywhere in it -- so
@@ -165,29 +161,25 @@ def is_placeholder(path):
 CAMPUSES = ("oxford", "hamilton", "middletown", "west chester", "luxembourg")
 
 
-def suggest_label(html_path, info=None):
-    """`318P-Hamilton` for a page saved at `.../318P/Hamilton/Photo Roster.html`.
+def suggest_location(html_path):
+    """`Hamilton`, read off where the page was saved or what it was called.
 
-    Saving one page per section into a folder named after the campus is what
-    people already do, so read the campus back off the path rather than making
-    them retype it -- getting it wrong silently merges two sections into one.
+    The page itself never says: two sections of one course differ on it only by
+    CRN. But naming the saved file `318p-hamilton-FA26.html`, or filing it under
+    a folder called Hamilton, is what people already do -- so read it back
+    rather than making them retype it. Getting this wrong merges two sections
+    into one class, which looks perfectly normal until November.
     """
-    info = info or read(html_path)
-    base = info["label"] or "section"
-
-    # The filename first: saving both sections into one folder and telling them
-    # apart by name -- "Photo Roster Hamilton.html" -- is as common as giving
-    # each a folder, and reading only the folder labelled both of them "318P".
     stem = os.path.splitext(os.path.basename(html_path))[0].lower()
     for campus in CAMPUSES:
         if campus in stem:
-            return f"{base}-{campus.title().replace(' ', '')}"
+            return campus.title()
 
     parts = os.path.normpath(os.path.dirname(os.path.abspath(html_path))).split(os.sep)
     for part in reversed(parts[-3:]):
         if part.lower() in CAMPUSES:
-            return f"{base}-{part.capitalize()}"
-    return base
+            return part.title()
+    return ""
 
 
 def find_pages(root, max_depth=4):
@@ -225,8 +217,14 @@ def find_pages(root, max_depth=4):
     return found
 
 
-def plan(root, out_root):
-    """What a batch import would do, worked out before anything is written."""
+def plan(root, folder):
+    """What a batch import would do, worked out before anything is written.
+
+    One job per saved page. `course` and `location` are what go into every
+    filename the job writes, and the caller lets them be edited first: the
+    campus is a guess read off the path, and a wrong guess quietly merges two
+    sections into one class.
+    """
     jobs = []
     for page in find_pages(root):
         try:
@@ -235,12 +233,12 @@ def plan(root, out_root):
             continue
         if not info["students"]:
             continue
-        label = suggest_label(page, info)
         jobs.append({
             "page": page,
-            "label": label,
+            "course": info["label"],
+            "location": suggest_location(page),
             "info": info,
-            "destination": destination_for(out_root, label),
+            "folder": folder,
             "students": len(info["students"]),
         })
     return jobs
@@ -251,39 +249,26 @@ def prepare_all(jobs):
     done = []
     for job in jobs:
         try:
-            outcome = prepare(job["page"], None, None, _destination=job["destination"])
+            outcome = prepare(job["page"], job["folder"],
+                              job["course"], job["location"])
             done.append({**job, "outcome": outcome, "error": None})
         except OSError as exc:
             done.append({**job, "outcome": None, "error": str(exc)})
     return done
 
 
-def destination_for(out_root, label):
-    """Where a prepared section lands: one folder per class, headshots inside.
+def prepare(html_path, folder, course, location):
+    """Copy the roster's photos into `folder`, named for student and class.
 
-        "284"          -> <out_root>/284/headshots
-        "318P-Oxford"  -> <out_root>/318P/headshots-oxford
-
-    Photos belong with the rest of a class's material, not in the application
-    folder -- the app should be replaceable without disturbing a single photo.
-    The campus suffix is what keeps two sections of one course apart, which the
-    roster page itself never distinguishes.
-    """
-    label = _safe(label)
-    course, _, campus = label.partition("-")
-    return roster.section_dir(os.path.join(out_root, course or label), campus)
-
-
-def prepare(html_path, out_root, label, _destination=None):
-    """Copy the roster's photos into `out_root/label` with Name Game's naming.
-
-    Returns the destination, how many were written, and the students who have
-    no photo -- the registrar's placeholder is skipped rather than written, so
-    the app never quizzes on a silhouette.
+    Every section writes into the same folder -- the class is in the filename,
+    so there is nowhere else for it to go. Returns where they went, how many
+    were written, and the students who have no photo: the registrar's
+    placeholder is skipped rather than copied, so the app never quizzes on a
+    silhouette.
     """
     info = read(html_path)
-    destination = _destination or destination_for(out_root, label or info["label"])
-    os.makedirs(destination, exist_ok=True)
+    course = course or info["label"]
+    os.makedirs(folder, exist_ok=True)
 
     written, missing, seen = 0, [], {}
     for student in info["students"]:
@@ -291,20 +276,20 @@ def prepare(html_path, out_root, label, _destination=None):
         if not os.path.exists(source) or is_placeholder(source):
             missing.append(student["name"])
             continue
-        stem = student["stem"]
-        seen[stem] = seen.get(stem, 0) + 1
-        if seen[stem] > 1:
-            stem = f"{stem}-{seen[stem]}"
-        shutil.copy2(source, os.path.join(destination, stem + _extension(source)))
+        name = roster.filename(student["first"], student["last"],
+                               course, location, _extension(source))
+        # Two students of one name in one class: the second gets a numbered
+        # copy rather than overwriting the first, who would then be quizzed
+        # on twice under one face.
+        seen[name] = seen.get(name, 0) + 1
+        if seen[name] > 1:
+            stem, extension = os.path.splitext(name)
+            name = f"{stem}-{seen[name]}{extension}"
+        shutil.copy2(source, os.path.join(folder, name))
         written += 1
 
-    if missing:
-        with open(os.path.join(destination, "NO-PHOTO.txt"), "w", encoding="utf-8") as fh:
-            fh.write(f"{len(missing)} students have no photo on the roster:\n\n")
-            fh.write("\n".join(sorted(missing)) + "\n")
-
     return {
-        "folder": destination,
+        "folder": folder,
         "written": written,
         "missing": missing,
         "total": len(info["students"]),

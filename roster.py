@@ -1,11 +1,20 @@
-"""Loading a section's photos, and remembering which section was last open.
+"""One folder of photos, each named for the student and the class.
 
-Both screens used to carry their own copy of this, which is how they drifted:
-study mode showed one part of the name while quiz mode showed both.
+    Ryan_Wagers_318P_Oxford.jpg
+
+Everything the app needs is in that name: who it is, which course, which
+campus. So there is one folder, not a tree, and picking a class is a filter
+over what is already loaded rather than a different folder to go and find.
+
+What this replaced was a layout -- `<root>/318P/headshots-oxford` -- that made
+the app carry a photo root, a section folder, a naming convention for section
+folders, and a discovery walk to find them. Four ideas to express one thing,
+and every one of them a way to point at the wrong folder.
 """
 
 import json
 import os
+import re
 import sys
 
 IMAGE_TYPES = (".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".bmp", ".webp",
@@ -15,15 +24,19 @@ IMAGE_TYPES = (".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".bmp", ".webp"
 # folder report can name them, rather than calling an iPhone photo "not an image".
 UNREADABLE_TYPES = (".heic", ".heif", ".avif")
 
+FOLDER_NAME = "student-photos"
+
+# Never worth walking into looking for photos. A thumbdrive carries music and
+# Windows bookkeeping too, and those run to thousands of entries apiece.
+SKIP_DIRS = {"music", "system volume information", "winpython", "$recycle.bin",
+             "found.000", "node_modules", "__pycache__"}
+
 
 def sniff(path):
     """The image format of `path` read from its first bytes, as an extension.
 
     Needed because the registrar serves photos from URLs carrying no extension,
-    so a browser-saved roster writes them to disk as bare `photo_12345`. Rosters
-    prepared before that was handled hold whole folders of extensionless files;
-    they are real JPEGs, and skipping them was why a folder full of photos
-    reported "No photos found in that folder."
+    so a browser-saved roster writes them to disk as bare `photo_12345`.
     """
     try:
         with open(path, "rb") as fh:
@@ -66,12 +79,105 @@ def is_photo(path, filename):
         return True
     if extension:
         # A stated extension is taken at its word. Opening every .zip and .dmg
-        # to look at its first bytes cost nine seconds on a cold thumbdrive,
-        # which is most of a section menu's budget spent proving that a disk
-        # image is not a headshot.
+        # to look at its first bytes cost nine seconds on a cold thumbdrive.
         return False
     return sniff(path) in IMAGE_TYPES
 
+
+# -- the filename -----------------------------------------------------------
+
+def clean(part):
+    """A name part fit for a filename field.
+
+    Underscores go because they separate the fields; the characters after them
+    go because Windows will not have them in a filename. Spaces stay -- "Mary
+    Jane" is a first name, and mangling it to `Mary-Jane` would come back out
+    of `display_name` wrong.
+    """
+    return re.sub(r'[\\/:*?"<>|_]', " ", part or "").strip()
+
+
+def filename(first, last, course, location, extension=".jpg"):
+    """`Ryan_Wagers_318P_Oxford.jpg`, with each field cleaned of separators."""
+    fields = [clean(first), clean(last), clean(course), clean(location)]
+    while fields and not fields[-1]:
+        fields.pop()
+    return "_".join(fields) + extension
+
+
+def parse(name):
+    """A photo filename back into {'first', 'last', 'course', 'location'}.
+
+    Four fields is what Roster Prep writes. Three -- no campus known -- and two
+    -- a photo somebody named by hand -- are read as far as they go, because
+    refusing to show a photo whose name is short is worse than showing it with
+    no class attached.
+    """
+    stem = os.path.splitext(name)[0]
+    fields = [f.strip() for f in stem.split("_")]
+    fields += [""] * (4 - len(fields))
+    first, last, course, location = fields[:4]
+    if len(stem.split("_")) == 1:            # no underscore at all: one name
+        first, last = "", stem.strip()
+    return {"first": first, "last": last, "course": course, "location": location}
+
+
+def class_of(record):
+    """`318P Oxford`, the label a class is picked by. Empty if the name said none."""
+    return f"{record['course']} {record['location']}".strip()
+
+
+def display_name(record):
+    """`Ryan Wagers`. A photo with only one name shows that name."""
+    return f"{record['first']} {record['last']}".strip()
+
+
+def sort_key(student):
+    """By surname, so a class reads like a class list."""
+    return (student["last"].lower(), student["first"].lower())
+
+
+def load(folder):
+    """Every photo in `folder`, as student records ordered by surname.
+
+    One flat folder holding every class. Filtering to one of them is `in_class`,
+    over this list -- nothing goes back to disk to change class.
+    """
+    if not folder or not os.path.isdir(folder):
+        return []
+    try:
+        entries = os.listdir(folder)
+    except OSError:
+        return []
+
+    students = []
+    for name in entries:
+        path = os.path.join(folder, name)
+        if not is_photo(path, name):
+            continue
+        record = parse(name)
+        record["path"] = path
+        record["key"] = os.path.splitext(name)[0]   # what a saved hint is filed under
+        record["name"] = display_name(record)
+        record["label"] = class_of(record)
+        students.append(record)
+    return sorted(students, key=sort_key)
+
+
+def classes(students):
+    """Every class present, as labels, in the order they should be offered."""
+    seen = {s["label"] for s in students if s["label"]}
+    return sorted(seen, key=str.lower)
+
+
+def in_class(students, label):
+    """The students in one class, or all of them when `label` is falsy."""
+    if not label:
+        return list(students)
+    return [s for s in students if s["label"] == label]
+
+
+# -- where the folder is ----------------------------------------------------
 
 def config_path():
     d = os.path.join(os.path.expanduser("~"), ".student_name_game")
@@ -89,11 +195,6 @@ def _read_config():
 
 
 def _write_config(**updates):
-    """Merge into config.json rather than replacing it.
-
-    The file holds the photo root as well as the last section now, and writing
-    one key used to clobber the other.
-    """
     data = _read_config()
     data.update(updates)
     try:
@@ -103,242 +204,21 @@ def _write_config(**updates):
         pass
 
 
-def load_last_folder():
-    folder = _read_config().get("last_folder")
+def load_folder():
+    folder = _read_config().get("folder")
     return folder if folder and os.path.isdir(folder) else None
 
 
-def save_last_folder(folder):
-    _write_config(last_folder=folder)
+def save_folder(folder):
+    _write_config(folder=folder)
 
 
-def load_photo_root():
-    """The folder holding one subfolder per class. See `discover`."""
-    root = _read_config().get("photo_root")
-    return root if root and os.path.isdir(root) else None
+def load_last_class():
+    return _read_config().get("last_class") or ""
 
 
-def save_photo_root(root):
-    _write_config(photo_root=root)
-
-
-def display_name(stem):
-    """`Smith_Alex` -> `Alex Smith`. Files without an underscore pass through."""
-    if "_" in stem:
-        last, _, first = stem.partition("_")
-        return f"{first} {last}".strip() if first else last
-    return stem
-
-
-def load(folder):
-    """Every photo in `folder` as {'name', 'path', 'key'}, ordered by surname.
-
-    Ordering is by filename, which is LastName_FirstName, so the roster reads
-    like a class list instead of whatever order the filesystem returned.
-    """
-    if not folder or not os.path.isdir(folder):
-        return []
-
-    try:
-        entries = sorted(os.listdir(folder), key=str.lower)
-    except OSError:
-        return []
-
-    students = []
-    for filename in entries:
-        path = os.path.join(folder, filename)
-        if not is_photo(path, filename):
-            continue
-        stem = os.path.splitext(filename)[0]
-        students.append({
-            "name": display_name(stem),
-            "path": path,
-            "key": stem,
-        })
-    return students
-
-
-def describe(folder):
-    """Why `folder` produced no photos, in a sentence worth showing the user.
-
-    "No photos found in that folder" is a dead end when the folder plainly has
-    photos in it. Counting what is actually there turns the message into
-    something that names the real problem.
-    """
-    if not folder:
-        return "No folder was chosen."
-    if not os.path.isdir(folder):
-        return "That folder no longer exists."
-    try:
-        entries = sorted(os.listdir(folder), key=str.lower)
-    except OSError as exc:
-        return f"That folder could not be read.\n\n{exc}"
-
-    photos = load(folder)
-    if photos:
-        return f"{len(photos)} photos are readable here after all -- try again."
-
-    files = [f for f in entries
-             if os.path.isfile(os.path.join(folder, f)) and not f.startswith(".")]
-    unreadable = [f for f in files
-                  if os.path.splitext(f)[1].lower() in UNREADABLE_TYPES]
-    subfolders = [f for f in entries
-                  if os.path.isdir(os.path.join(folder, f)) and not f.startswith(".")]
-    withphotos = [f for f in subfolders if load(os.path.join(folder, f))]
-
-    if withphotos:
-        listed = ", ".join(withphotos[:6]) + ("..." if len(withphotos) > 6 else "")
-        return ("That folder holds other folders rather than photos.\n\n"
-                f"Choose one of these instead: {listed}")
-    if unreadable:
-        return (f"{len(unreadable)} of those files are HEIC/AVIF photos, which "
-                "this app cannot open yet.\n\nRe-save them as JPEG and try again.")
-    if not files:
-        return "That folder is empty."
-    return (f"{len(files)} files are there, but none of them are images this app "
-            "can read.\n\nIf your photos are in a subfolder, choose that instead.")
-
-
-def _roster_named(stem):
-    """`Smith_Alex`: a name this app wrote, rather than whatever a camera did."""
-    last, sep, first = stem.partition("_")
-    return bool(sep) and last[:1].isalpha() and first[:1].isalpha()
-
-
-def named_like_roster(students, need=0.7):
-    """Whether these files look like a class, rather than loose images.
-
-    `discover` guesses -- it walks into folders nobody pointed at -- and a guess
-    has to clear a bar an explicit choice does not. Two screenshots sitting on
-    the Desktop made it a class called "Desktop"; a folder of application
-    screenshots made it a class of three. Both were then announced as classes
-    found, which is worse than finding nothing: it buries the roster you do have
-    under names you have never taught, and in Roster Prep it stopped the real
-    saved roster beside them from ever being prepared.
-
-    Anything explicitly chosen still goes through `load`, which asks none of
-    this. The standard applies to guessing only.
-    """
-    if len(students) < 3:
-        return False
-    named = sum(1 for s in students if _roster_named(s["key"]))
-    return named >= need * len(students)
-
-
-SECTION_DIR = "headshots"
-
-# Never worth walking into looking for a class. A thumbdrive carries music and
-# Windows bookkeeping too, and those run to thousands of entries apiece.
-SKIP_DIRS = {"music", "system volume information", "winpython", "$recycle.bin",
-             "found.000", "node_modules", "__pycache__"}
-
-
-def is_section_dir(name):
-    """`headshots`, or `headshots-oxford`: what a class keeps its faces in."""
-    lowered = name.lower()
-    return lowered == SECTION_DIR or lowered.startswith(SECTION_DIR + "-")
-
-
-def course_name(folder):
-    """Human label for a section, from its folder path.
-
-    Handles the layouts in use:
-        .../student-headshots/284              -> "284"
-        .../student-headshots/318P-Oxford      -> "318P Oxford"
-        .../Untitled/284/headshots             -> "284"
-        .../Untitled/318P/headshots-oxford     -> "318P Oxford"
-
-    Lives here rather than in theme.py because it is path arithmetic, not look
-    and feel -- and because discovery needs it without dragging tkinter in.
-    """
-    if not folder:
-        return ""
-    folder = os.path.normpath(folder)
-    base = os.path.basename(folder)
-    parent = os.path.basename(os.path.dirname(folder))
-
-    if base.lower() == SECTION_DIR:
-        return parent
-    if is_section_dir(base):
-        return f"{parent} {base.split('-', 1)[1].capitalize()}".strip()
-    return base.replace("-", " ").replace("_", " ")
-
-
-def discover(root):
-    """Every section under `root`, as {'label', 'path', 'count'}.
-
-    One folder per class, each holding its own headshots:
-
-        <root>/284/headshots            -> "284"
-        <root>/318P/headshots-oxford    -> "318P Oxford"
-        <root>/318P/headshots-hamilton  -> "318P Hamilton"
-
-    Photos sit with the rest of a class's material rather than inside the
-    application folder, so the app stays disposable: it can be rebuilt, moved or
-    replaced without going anywhere near a student photo.
-    """
-    if not root or not os.path.isdir(root):
-        return []
-
-    def children(path):
-        try:
-            return sorted((n for n in os.listdir(path) if not n.startswith(".")),
-                          key=str.lower)
-        except OSError:
-            return []
-
-    sections = {}
-
-    def is_browser_junk(name):
-        """`Photo Roster-284_files`: what a browser writes beside a saved page.
-
-        Full of real photos, so it loads as a section of 25 students -- named
-        `photo_9d2f1a` apiece, because the registrar's image URLs carry no
-        names. Offered from the Desktop it looks exactly like a class and
-        quizzes you on nothing. Roster Prep reads these; nothing else should.
-        """
-        return name.lower().endswith("_files")
-
-    def add(path, named=False):
-        """`named` is a folder called `headshots`: somebody said so, so it counts.
-
-        Everywhere else this is guessing, and has to look like a class first.
-        """
-        path = os.path.normpath(path)
-        if path in sections or not os.path.isdir(path):
-            return
-        students = load(path)
-        if not students or not (named or named_like_roster(students)):
-            return
-        sections[path] = {"label": course_name(path) or os.path.basename(path),
-                          "path": path, "count": len(students)}
-
-    add(root)                       # pointed straight at one section's photos
-    for name in children(root):
-        classdir = os.path.join(root, name)
-        if (not os.path.isdir(classdir) or name.lower() in SKIP_DIRS
-                or is_browser_junk(name)):
-            continue
-        add(classdir)               # a section folder sitting at the root
-        for sub in children(classdir):
-            if is_section_dir(sub):
-                add(os.path.join(classdir, sub), named=True)
-
-    return sorted(sections.values(), key=lambda s: s["label"].lower())
-
-
-def root_for(section_path):
-    """The folder holding the class folders, given one section's photo folder.
-
-    `<root>/318P/headshots-oxford` -> `<root>`, so opening one section teaches
-    the app where the rest of them live.
-    """
-    if not section_path:
-        return None
-    section_path = os.path.normpath(section_path)
-    if is_section_dir(os.path.basename(section_path)):
-        return os.path.dirname(os.path.dirname(section_path))
-    return os.path.dirname(section_path)
+def save_last_class(label):
+    _write_config(last_class=label or "")
 
 
 def removable_roots():
@@ -346,13 +226,7 @@ def removable_roots():
 
     The photos travel on a thumbdrive, and where that appears is entirely a
     matter of platform: `/Volumes/NAME` on a Mac, `/run/media/todd/NAME` or
-    `/media/todd/NAME` on Linux, a bare drive letter on Windows. Only the Mac
-    case was ever looked for, so on the other two the drive was never offered
-    and the picker opened under home with no route to it -- Tk's folder chooser
-    gives you no sidebar of volumes to click.
-
-    Skips anything named in SKIP_DIRS, which is what keeps a 900GB drive
-    labelled MUSIC from being offered as somewhere to look for a class.
+    `/media/todd/NAME` on Linux, a bare drive letter on Windows.
     """
     import glob
     import string
@@ -380,43 +254,46 @@ def removable_roots():
     return found
 
 
-def candidate_roots():
-    """Where to look for class folders, best guess first.
+def candidate_folders():
+    """Where the photo folder might be, best guess first.
 
     A thumbdrive that moves between a Mac and a Windows lab machine mounts at a
     different path on each, so a remembered absolute path is a hint rather than
-    an answer -- hence falling back to whatever is mounted now.
+    an answer -- hence looking again at whatever is mounted now.
     """
-    roots, seen = [], set()
+    found, seen = [], set()
 
     def offer(path):
         if path and os.path.isdir(path) and path not in seen:
             seen.add(path)
-            roots.append(path)
+            found.append(path)
 
-    offer(load_photo_root())
-    offer(root_for(load_last_folder()))
+    offer(load_folder())
     for volume in removable_roots():
-        offer(volume)
-    for name in ("student-headshots", "Documents", "Desktop"):
-        offer(os.path.join(os.path.expanduser("~"), name))
-    offer(os.path.join(os.path.expanduser("~"), "Pictures", "student-headshots"))
-    return roots
+        offer(os.path.join(volume, FOLDER_NAME))
+    offer(os.path.join(os.path.expanduser("~"), "Pictures", FOLDER_NAME))
+    offer(os.path.join(os.path.expanduser("~"), FOLDER_NAME))
+    return found
 
 
-def find_sections():
-    """Sections from the first candidate root that has any."""
-    for root in candidate_roots():
-        found = discover(root)
-        if found:
-            return root, found
-    return None, []
+def find_folder():
+    """The first candidate folder that actually holds photos."""
+    for folder in candidate_folders():
+        if load(folder):
+            return folder
+    return None
 
 
-def section_dir(class_folder, campus=""):
-    """Where a class's photos belong: `<class_folder>/headshots[-campus]`."""
-    name = SECTION_DIR + (f"-{campus.strip().lower()}" if campus.strip() else "")
-    return os.path.join(class_folder, name)
+def default_folder():
+    """Where to write photos when nothing has been chosen yet.
+
+    The thumbdrive if one is mounted -- the photos travel between a laptop and
+    a lab machine, and that is what the drive is for -- otherwise under
+    Pictures.
+    """
+    volumes = removable_roots()
+    base = volumes[0] if volumes else os.path.join(os.path.expanduser("~"), "Pictures")
+    return os.path.join(base, FOLDER_NAME)
 
 
 def sample_folder():
@@ -425,56 +302,38 @@ def sample_folder():
     Lets someone try the app before they have prepared a real roster -- and
     means a demo never needs student photos on screen.
     """
-    import sys
-
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     folder = os.path.join(base, "sample-roster")
     return folder if os.path.isdir(folder) and load(folder) else None
 
 
-def count_photos(folder):
-    """How many loadable photos sit directly in `folder`.
-
-    Counted with `is_photo`, the same test `load` uses. Matching on extension
-    alone was a quieter version of the bug `sniff` exists to fix: the registrar
-    serves photos from URLs carrying no extension, so a prepared section is a
-    folder of bare `Smith_Alex` files. `load` opens them and finds a roster;
-    this counted zero, and the folder that photo_subfolders should have offered
-    was never mentioned.
-    """
-    if not folder or not os.path.isdir(folder):
-        return 0
-    try:
-        return sum(1 for f in os.listdir(folder)
-                   if is_photo(os.path.join(folder, f), f))
-    except OSError:
-        return 0
-
-
-def photo_subfolders(folder, depth=2):
-    """Folders beneath `folder` that do hold photos, as (path, count).
-
-    Picking the parent by mistake is the easy slip: a thumbdrive holds
-    `rosters/headshots-hamilton`, the picker shows only folder names, and
-    `rosters` looks like the destination right up until the app reports
-    nothing in it. Rather than make someone guess which level was wrong,
-    look down a couple of levels and offer what is actually there.
-    """
-    found = []
-    if not folder or not os.path.isdir(folder) or depth < 1:
-        return found
+def describe(folder):
+    """Why `folder` produced no photos, in a sentence worth showing the user."""
+    if not folder:
+        return "No folder was chosen."
+    if not os.path.isdir(folder):
+        return "That folder no longer exists."
     try:
         entries = sorted(os.listdir(folder), key=str.lower)
-    except OSError:
-        return found
+    except OSError as exc:
+        return f"That folder could not be read.\n\n{exc}"
 
-    for entry in entries:
-        path = os.path.join(folder, entry)
-        if not os.path.isdir(path):
-            continue
-        count = count_photos(path)
-        if count:
-            found.append((path, count))
-        else:
-            found.extend(photo_subfolders(path, depth - 1))
-    return found
+    files = [f for f in entries
+             if os.path.isfile(os.path.join(folder, f)) and not f.startswith(".")]
+    unreadable = [f for f in files
+                  if os.path.splitext(f)[1].lower() in UNREADABLE_TYPES]
+    subfolders = [f for f in entries
+                  if os.path.isdir(os.path.join(folder, f)) and not f.startswith(".")]
+    withphotos = [f for f in subfolders if load(os.path.join(folder, f))]
+
+    if withphotos:
+        listed = ", ".join(withphotos[:6]) + ("..." if len(withphotos) > 6 else "")
+        return ("That folder holds other folders rather than photos.\n\n"
+                f"Choose one of these instead: {listed}")
+    if unreadable:
+        return (f"{len(unreadable)} of those files are HEIC/AVIF photos, which "
+                "this app cannot open yet.\n\nRe-save them as JPEG and try again.")
+    if not files:
+        return "That folder is empty."
+    return (f"{len(files)} files are there, but none of them are images this app "
+            "can read.\n\nIf your photos are in a subfolder, choose that instead.")

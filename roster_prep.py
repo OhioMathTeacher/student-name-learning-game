@@ -38,14 +38,13 @@ HOW_TO = (
 )
 
 
-def default_out_root():
-    """Where prepared classes go when nothing else is known.
+def default_photos():
+    """The one folder prepared photos go into.
 
-    Whatever Name Game last used, so both apps agree on where classes live
+    Whatever Name Game last used, so both apps agree on where the photos live
     without the two of them being told separately.
     """
-    return roster.load_photo_root() or os.path.join(
-        os.path.expanduser("~"), "Pictures", "student-headshots")
+    return roster.load_folder() or roster.default_folder()
 
 
 class RosterPrep(tk.Frame):
@@ -62,7 +61,7 @@ class RosterPrep(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent, bg=theme.BG)
         self.root = parent
-        self.out_root = default_out_root()
+        self.photos = default_photos()
         self.jobs = []
         self.rows = []
         self.done_jobs = []
@@ -100,7 +99,7 @@ class RosterPrep(tk.Frame):
                               command=self.choose_single)
         file_menu.add_separator()
         file_menu.add_command(label="Where classes live…",
-                              command=self.choose_out_root)
+                              command=self.choose_photos)
         self.roster_menu = tk.Menu(file_menu, tearoff=0)
         file_menu.add_cascade(label="Open a roster in the browser",
                               menu=self.roster_menu)
@@ -273,7 +272,7 @@ class RosterPrep(tk.Frame):
         overflowed the row rather than wrapping -- so the end, which is the
         part that differs and the part being checked, was the part cut off.
         """
-        root = os.path.normpath(self.out_root)
+        root = os.path.normpath(self.photos)
         path = os.path.normpath(path)
         if path.startswith(root + os.sep):
             return os.path.relpath(path, root)
@@ -281,7 +280,7 @@ class RosterPrep(tk.Frame):
 
     def refresh_destination(self):
         self.destination_line.config(
-            text=f"Classes go to:  {self.out_root}")
+            text=f"Photos go to:  {self.photos}")
 
     def refresh_roster_menu(self):
         """List sections already imported, so their roster is one click away."""
@@ -315,14 +314,14 @@ class RosterPrep(tk.Frame):
             return
         webbrowser.open(prepare.ROSTER_APP)
 
-    def choose_out_root(self):
-        """Point both apps at the folder your class folders sit in."""
-        folder = theme.ask_place(self.root, "Where should classes be kept?",
-                                 current=self.out_root)
+    def choose_photos(self):
+        """Point both apps at the one folder the photos are kept in."""
+        folder = theme.ask_folder(self.root, self.photos,
+                                  title="Where should the photos be kept?")
         if not folder:
             return
-        self.out_root = folder
-        roster.save_photo_root(folder)
+        self.photos = folder
+        roster.save_folder(folder)
         self.refresh_destination()
         if self.jobs:
             self.rebuild_plan()
@@ -345,7 +344,7 @@ class RosterPrep(tk.Frame):
         if self.take_prepared(folder):
             return
 
-        jobs = prepare.plan(folder, self.out_root)
+        jobs = prepare.plan(folder, self.photos)
         if not jobs:
             self.report_nothing_found(folder)
             return
@@ -357,29 +356,25 @@ class RosterPrep(tk.Frame):
     choose_batch = choose_folder
 
     def take_prepared(self, folder):
-        """Photos already prepared: accept them and say so. True if taken."""
-        prepared = roster.discover(folder)
-        if not prepared:
+        """Photos already prepared: accept them and say so. True if taken.
+
+        `Ryan_Wagers_318P_Oxford.jpg` says which class it belongs to, so a
+        folder of them needs no arranging -- it is already the answer. There is
+        no root to work out any more, which is what used to go wrong here: the
+        drive's parent got written into the config and every class on it was
+        lost.
+        """
+        students = roster.load(folder)
+        classes = roster.classes(students)
+        if not classes:
             return False
 
-        # Which of the two things was handed over decides the root. One
-        # section's photos sit inside a class folder, so the root is two levels
-        # up; the folder holding the class folders is already the root. Taking
-        # root_for either way put the drive's parent -- /run/media/todd -- in
-        # the config when the drive itself was chosen.
-        if roster.load(folder):
-            root = roster.root_for(folder) or folder
-            opens = folder
-        else:
-            root = folder
-            opens = prepared[0]["path"]
-        roster.save_photo_root(root)
-        roster.save_last_folder(opens)
-        self.out_root = root
+        roster.save_folder(folder)
+        self.photos = folder
         self.refresh_destination()
-        sections = roster.discover(root) or prepared
-        listing = "\n".join(f"\u2022  {s['label']} \u2014 {s['count']} photos"
-                            for s in sections[:8])
+        listing = "\n".join(
+            f"\u2022  {label} \u2014 {len(roster.in_class(students, label))} photos"
+            for label in classes[:8])
         messagebox.showinfo(
             "Roster Prep",
             f"Using these. Name Game opens them now.\n\n{listing}")
@@ -421,13 +416,13 @@ class RosterPrep(tk.Frame):
                 "also saves a folder of images beside it.")
             return
 
-        label = prepare.suggest_label(page, info)
         self.searched = os.path.dirname(page)
         self.jobs = [{
             "page": page,
-            "label": label,
+            "course": info["label"],
+            "location": prepare.suggest_location(page),
             "info": info,
-            "destination": prepare.destination_for(self.out_root, label),
+            "folder": self.photos,
             "students": len(info["students"]),
         }]
         self.rebuild_plan()
@@ -504,95 +499,123 @@ class RosterPrep(tk.Frame):
 
             middle = tk.Frame(inner, bg=theme.SURFACE)
             middle.pack(fill=tk.X, pady=(8, 0))
-            theme.label(middle, "Folder", size=theme.SIZE_SMALL, fg=theme.MUTED,
-                        bg=theme.SURFACE).pack(side=tk.LEFT, padx=(0, 8))
-            var = tk.StringVar(value=job["label"])
-            entry = tk.Entry(
-                middle, textvariable=var, width=22,
-                font=theme.font(theme.SIZE_SMALL), bg=theme.BG, fg=theme.TEXT,
-                insertbackground=theme.TEXT, relief=tk.FLAT, bd=0,
-                highlightthickness=1, highlightbackground=theme.BORDER,
-                highlightcolor=theme.ACCENT)
-            entry.pack(side=tk.LEFT, ipady=3)
 
-            destination = theme.label(inner, "", size=theme.SIZE_SMALL,
-                                      fg=theme.MUTED, bg=theme.SURFACE,
-                                      anchor="w", justify="left")
-            destination.pack(fill=tk.X, pady=(8, 0))
+            def field(caption, value, width):
+                theme.label(middle, caption, size=theme.SIZE_SMALL,
+                            fg=theme.MUTED,
+                            bg=theme.SURFACE).pack(side=tk.LEFT, padx=(0, 6))
+                var = tk.StringVar(value=value)
+                tk.Entry(middle, textvariable=var, width=width,
+                         font=theme.font(theme.SIZE_SMALL), bg=theme.BG,
+                         fg=theme.TEXT, insertbackground=theme.TEXT,
+                         relief=tk.FLAT, bd=0, highlightthickness=1,
+                         highlightbackground=theme.BORDER,
+                         highlightcolor=theme.ACCENT
+                         ).pack(side=tk.LEFT, ipady=3, padx=(0, 16))
+                var.trace_add("write", lambda *_a: self.recheck())
+                return var
 
-            entry_row = {"job": job, "var": var, "destination": destination}
-            self.rows.append(entry_row)
-            var.trace_add("write", lambda *_a: self.recheck())
+            course = field("Course", job["course"], 10)
+            location = field("Location", job["location"], 14)
+
+            # An example filename rather than a folder path: the filename is
+            # where the class now lives, so it is the thing worth checking
+            # before 29 copies of it are written.
+            example = theme.label(inner, "", size=theme.SIZE_SMALL,
+                                  fg=theme.MUTED, bg=theme.SURFACE,
+                                  anchor="w", justify="left")
+            example.pack(fill=tk.X, pady=(8, 0))
+
+            self.rows.append({"job": job, "course": course,
+                              "location": location, "example": example})
 
         self.plan_headline.config(
             text=f"{len(self.jobs)} sections ready to prepare")
         self.plan_note.config(
-            text="The folder name is read off where you saved each page. Two "
-                 "sections of one course must differ here — the roster page "
-                 "itself never says which campus it is.")
+            text="Course and location go into every filename, and are how you "
+                 "pick a class in Name Game. Two sections of one course must "
+                 "differ here — the roster page itself never says which "
+                 "campus it is.")
         self.recheck()
 
     def recheck(self):
-        """Recompute destinations from the edited labels, and flag collisions.
+        """Rebuild the example filenames, and flag two sections sharing a class.
 
-        Two jobs writing to one folder is the whole reason this screen exists:
-        it merges two rosters into one and nothing about the result looks wrong
-        afterwards.
+        Two jobs writing one class is the whole reason this screen exists: the
+        two rosters merge into one class of double length, and nothing about
+        the result looks wrong afterwards. It used to be two sections sharing a
+        folder; now they share a name, and the same photo can be overwritten
+        outright, so it matters more rather than less.
         """
         counts = {}
         for row in self.rows:
-            label = row["var"].get().strip() or row["job"]["label"]
-            destination = prepare.destination_for(self.out_root, label)
-            row["path"] = destination
-            counts[destination] = counts.get(destination, 0) + 1
+            job = row["job"]
+            course = row["course"].get().strip() or job["course"]
+            location = row["location"].get().strip()
+            row["label"] = f"{course} {location}".strip()
+            counts[row["label"]] = counts.get(row["label"], 0) + 1
 
-        clashing = {d for d, n in counts.items() if n > 1}
+        clashing = {label for label, n in counts.items() if n > 1}
         for row in self.rows:
-            clash = row["path"] in clashing
-            row["destination"].config(
-                text=("⚠  " if clash else "") + self.shorten(row["path"]),
+            job = row["job"]
+            student = job["info"]["students"][0] if job["info"]["students"] else None
+            shown = roster.filename(
+                student["first"] if student else "First",
+                student["last"] if student else "Last",
+                row["course"].get().strip() or job["course"],
+                row["location"].get().strip())
+            clash = row["label"] in clashing
+            row["example"].config(
+                text=("\u26a0  " if clash else "") + shown,
                 fg=theme.STOP if clash else theme.MUTED)
 
         if clashing:
             self.collision_note.config(
-                text="Two sections would be written to the same folder and "
-                     "merged into one roster. Give them different names — "
-                     "318P-Oxford and 318P-Hamilton.")
+                text="Two sections would be given the same class name and "
+                     "merged into one roster. Give them different locations — "
+                     "Oxford and Hamilton.")
             self.run_button.config(state=tk.DISABLED)
         else:
             self.collision_note.config(text="")
             self.run_button.config(state=tk.NORMAL)
 
     def run(self):
-        jobs = []
-        for row in self.rows:
-            label = row["var"].get().strip() or row["job"]["label"]
-            jobs.append({**row["job"], "label": label, "destination": row["path"]})
+        jobs = [{**row["job"],
+                 "course": row["course"].get().strip() or row["job"]["course"],
+                 "location": row["location"].get().strip(),
+                 "label": row["label"],
+                 "folder": self.photos}
+                for row in self.rows]
 
         done = prepare.prepare_all(jobs)
         self.done_jobs = done
 
         written = sum(j["outcome"]["written"] for j in done if j["outcome"])
         failed = [j for j in done if j["error"]]
-        missing = sum(len(j["outcome"]["missing"]) for j in done if j["outcome"])
+        missing = sorted(name for j in done if j["outcome"]
+                         for name in j["outcome"]["missing"])
 
         for job in done:
             if not job["outcome"]:
                 continue
             info = job["info"]
-            prepare.remember_section(roster.course_name(job["destination"])
-                                     or job["label"], info.get("term"),
+            prepare.remember_section(job["label"], info.get("term"),
                                      info.get("crn"))
         self.refresh_roster_menu()
-        roster.save_photo_root(self.out_root)
+        roster.save_folder(self.photos)
 
         self.result_headline.config(
             text=f"{written} photos ready",
             fg=theme.STOP if failed else theme.OK)
         summary = [f"{len(done) - len(failed)} of {len(done)} sections prepared"]
         if missing:
-            summary.append(f"{missing} students have no photo on the roster "
-                           "(listed in NO-PHOTO.txt)")
+            # Said here rather than written to a NO-PHOTO.txt beside the
+            # photos. The folder holds photos; a text file in it is one more
+            # thing to wonder about, and this is the moment the answer is
+            # actually wanted.
+            summary.append(f"{len(missing)} with no photo on the roster: "
+                           + ", ".join(missing[:4])
+                           + ("\u2026" if len(missing) > 4 else ""))
         self.result_summary.config(text="  ·  ".join(summary))
 
         for child in self.result_list.winfo_children():

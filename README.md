@@ -103,18 +103,28 @@ practises from them. Roster Prep is a start-of-term job you do once.
    page; *HTML only* does not. Save every section into one folder.
 3. Back in Roster Prep, click *Choose the folder…* and point it at that folder.
    Every section under it is found at once.
-4. Check the plan. Each row shows the folder a section will be written to, and
-   the name is editable. **Two sections of one course must differ here** — the
-   roster page never says which campus it is, so both arrive labelled `318P`
-   and would merge into one roster. Saving each into a folder named after its
-   campus (`Desktop/318P/Hamilton`) gets this right automatically.
+4. Check the plan. Each row shows a **Course** and a **Location**, both
+   editable, and an example of the filename they produce. **Two sections of one
+   course must differ here** — the roster page never says which campus it is,
+   so both arrive labelled `318P` and would merge into one class. Naming the
+   saved page after its campus (`318p-hamilton-FA26.html`), or filing it under
+   a folder called `Hamilton`, gets this right automatically.
 5. Prepare them, then take the offer to delete the saved pages. Those pages
    carry internal student ID numbers, not just names and faces.
 
-Photos land as `<root>/318P/headshots-hamilton/LastName_FirstName.jpg`, beside
-the rest of that class's material rather than inside the app — so the app can
-be rebuilt, moved or replaced without going near a student photo. Name Game
-finds them from there.
+Every photo lands in **one folder**, named for the student and the class:
+
+    student-photos/Naomi_Abernathy_318P_Hamilton.jpg
+    student-photos/Challis_Alfred_318P_Oxford.jpg
+    student-photos/Lina_Backus_284_Oxford.jpg
+
+    FirstName_LastName_Course_Location.jpg
+
+That filename is all Name Game needs, so there is no folder structure to get
+right and nothing to point at wrongly. Every class shares the folder, and
+picking one in *File → Class* filters what is already loaded. The folder sits
+outside the app — on a thumbdrive, or under Pictures — so the app can be
+rebuilt, moved or replaced without going near a student photo.
 
 Nothing is uploaded. Neither app touches the network except to open your
 roster in your own browser.
@@ -122,7 +132,8 @@ roster in your own browser.
 ## 🎯 How to Use
 
 ### Basic Operation
-1. **Load Photos**: Use File → Open section, or File → Change photo folder
+1. **Load Photos**: File → Change photo folder, then File → Class to pick one
+   class or *All students*
 2. **View Photos**: Student photos appear one at a time
 3. **Enter Names**: Type the student's first name in the text box
 4. **Get Feedback**: The app tells you right away whether you got the name right
@@ -130,9 +141,12 @@ roster in your own browser.
 6. **Track Progress**: Your current streak is displayed at the top
 
 ### Photo Organization
-- Organize photos in folders (e.g., "Section A", "Section B")
-- Name photos as `LastName_FirstName.jpg` or `FirstName_LastName.jpg`
-- The app will extract the first name automatically
+- One folder holds every class
+- Name photos `FirstName_LastName_Course_Location.jpg` — underscores separate
+  the four fields, so spaces are fine inside a name (`Mary Jane_Smith_284_Oxford.jpg`)
+- Leave the location off if there is only one section of a course
+  (`Mary Jane_Smith_284.jpg`); a photo named `Alex.jpg` still shows, just with
+  no class attached
 - Supported formats: JPG, JPEG, PNG, GIF, BMP
 
 ## 🛠️ Technical Requirements
@@ -149,10 +163,9 @@ roster in your own browser.
 ## 🎨 Customization
 
 ### Adding New Students
-1. Create a folder with your student photos
-2. Name photos as `LastName_FirstName.jpg` or similar
-3. Use File → Change Photo Folder to select the new folder
-4. The app automatically loads all images from the selected folder
+1. Drop the photo into the folder the other photos are in
+2. Name it `FirstName_LastName_Course_Location.jpg` to file it under a class
+3. File → Class → *Look again* is not needed — reopen the folder, or restart
 
 ### Photo Formats
 - Supported: JPG, JPEG, PNG, GIF, BMP

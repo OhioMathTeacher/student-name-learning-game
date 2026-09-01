@@ -78,7 +78,7 @@ def label(parent, text="", size=13, weight="normal", fg=None, **kw):
     )
 
 
-def ask_folder(parent, current=None, title="Select folder with student photos"):
+def ask_folder(parent, current=None, title="Select the folder with your student photos"):
     """Folder picker that opens somewhere useful and stays in front.
 
     Without an initialdir Tk starts wherever the process was launched, which
@@ -99,8 +99,8 @@ def ask_folder(parent, current=None, title="Select folder with student photos"):
 
     candidates = [
         current,
+        *roster.candidate_folders(),
         *roster.removable_roots(),
-        os.path.expanduser("~/Pictures/student-headshots"),
         os.path.expanduser("~"),
     ]
     initial = next((c for c in candidates if c and os.path.isdir(c)), None)
@@ -108,89 +108,6 @@ def ask_folder(parent, current=None, title="Select folder with student photos"):
     return filedialog.askdirectory(
         parent=parent, title=title, initialdir=initial, mustexist=True
     )
-
-
-def ask_place(parent, title="Where should I look for classes?", current=None):
-    """Choose a place to look for classes from what is actually mounted.
-
-    A raw folder picker was the wrong tool for this. It opens on one path and
-    every other place has to be navigated to, which is unreasonable when the
-    answer is nearly always "the thumbdrive" and Tk's chooser shows no volumes
-    to click. Worse, it opened on the place already configured -- so the one
-    thing you were trying to change was the one thing in front of you.
-
-    Every candidate is listed with how many sections it actually holds, which
-    is the number being chosen between. Browsing is still there for the folder
-    nobody guessed.
-    """
-    import roster
-    from tkinter import filedialog  # noqa: F401  (ask_folder needs it loaded)
-
-    places = []
-    for path in roster.candidate_roots():
-        found = roster.discover(path)
-        if found or path == current:
-            places.append((path, len(found)))
-
-    dialog = tk.Toplevel(parent)
-    dialog.title(title)
-    dialog.configure(bg=BG)
-    dialog.transient(parent)
-    dialog.resizable(False, False)
-
-    chosen = {"path": None}
-
-    def pick(path):
-        chosen["path"] = path
-        dialog.destroy()
-
-    def browse():
-        picked = ask_folder(dialog, current, title=title)
-        if picked:
-            pick(picked)
-
-    label(dialog, title, size=SIZE_LABEL, weight="bold").pack(
-        anchor="w", padx=26, pady=(22, 2))
-    label(dialog, "One folder per class, each with its headshots inside.",
-          size=SIZE_SMALL, fg=MUTED).pack(anchor="w", padx=26, pady=(0, 14))
-
-    for path, count in places:
-        row = tk.Frame(dialog, bg=SURFACE, highlightthickness=1,
-                       highlightbackground=ACCENT if path == current else BORDER,
-                       cursor="hand2")
-        row.pack(fill=tk.X, padx=26, pady=(0, 8))
-        inner = tk.Frame(row, bg=SURFACE)
-        inner.pack(fill=tk.X, padx=16, pady=10)
-
-        name = os.path.basename(path.rstrip(os.sep)) or path
-        heading = f"{name}   ({count} section" + ("" if count == 1 else "s") + ")"
-        if path == current:
-            heading += "   \u00b7  in use now"
-        top = label(inner, heading, size=SIZE_BODY, weight="bold", bg=SURFACE)
-        top.pack(anchor="w")
-        sub = label(inner, path, size=SIZE_SMALL, fg=MUTED, bg=SURFACE)
-        sub.pack(anchor="w")
-
-        for widget in (row, inner, top, sub):
-            widget.bind("<Button-1>", lambda _e, p=path: pick(p))
-
-    if not places:
-        label(dialog, "No classes found anywhere yet.", size=SIZE_SMALL,
-              fg=MUTED).pack(anchor="w", padx=26, pady=(0, 10))
-
-    buttons = tk.Frame(dialog, bg=BG)
-    buttons.pack(fill=tk.X, padx=26, pady=(8, 22))
-    button(buttons, "Choose another folder\u2026", browse).pack(side=tk.LEFT)
-    button(buttons, "Cancel", dialog.destroy).pack(side=tk.RIGHT)
-
-    dialog.update_idletasks()
-    x = parent.winfo_rootx() + (parent.winfo_width() - dialog.winfo_reqwidth()) // 2
-    y = parent.winfo_rooty() + 120
-    dialog.geometry(f"+{max(0, x)}+{max(0, y)}")
-
-    dialog.grab_set()
-    parent.wait_window(dialog)
-    return chosen["path"]
 
 
 PHOTO_BOX = 320  # every photo renders into a square of exactly this size
