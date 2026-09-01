@@ -968,13 +968,68 @@ class NameGame:
         self.section_menu.add_command(label="Look again",
                                       command=self.refresh_section_menu)
 
+    def _recover_folder(self, folder):
+        """Nothing loadable in `folder`: say what is there, and offer the fix.
+
+        Usually the pick was one level too high. A thumbdrive holds
+        `rosters/headshots-hamilton`, the folder picker lists only folder
+        names -- no photos to confirm against -- so `rosters` looks right
+        until the app reports it empty. Look below before failing, and name
+        the path either way: "No photos found in that folder" was true and
+        useless, because it never said which folder or what it saw.
+        """
+        found = roster.photo_subfolders(folder)
+
+        if len(found) == 1:
+            path, count = found[0]
+            if messagebox.askyesno(
+                "Name Game",
+                f"No photos directly in:\n{folder}\n\n"
+                f"But {count} photos are just below, in:\n{path}\n\n"
+                "Use that folder instead?"
+            ):
+                return path
+            return None
+
+        if found:
+            listing = "\n".join(f"\u2022  {path}  \u2014  {count} photos"
+                                for path, count in found[:8])
+            messagebox.showinfo(
+                "Name Game",
+                f"No photos directly in:\n{folder}\n\n"
+                f"These folders inside it do have photos. "
+                f"Choose one of them instead:\n\n{listing}"
+            )
+            return None
+
+        try:
+            entries = os.listdir(folder)
+        except OSError as exc:
+            messagebox.showwarning("Name Game", f"Could not read:\n{folder}\n\n{exc}")
+            return None
+
+        files = [e for e in entries if os.path.isfile(os.path.join(folder, e))]
+        messagebox.showwarning(
+            "Name Game",
+            f"No photos found in:\n{folder}\n\n"
+            f"It holds {len(files)} files and "
+            f"{len(entries) - len(files)} folders, but nothing ending "
+            ".jpg, .jpeg, .png, .gif or .bmp.\n\n"
+            "Pick the folder that directly contains the photo files."
+        )
+        return None
+
     def set_folder(self, folder, announce=True):
         students = roster.load(folder)
         if not students:
-            if announce:
-                messagebox.showwarning(
-                    "Name Game", "No photos loaded.\n\n" + roster.describe(folder))
-            return
+            if not announce:
+                return
+            folder = self._recover_folder(folder)
+            if not folder:
+                return
+            students = roster.load(folder)
+            if not students:
+                return
         self.folder = folder
         self.students = students
         roster.save_last_folder(folder)

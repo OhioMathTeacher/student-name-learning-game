@@ -350,3 +350,43 @@ def sample_folder():
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     folder = os.path.join(base, "sample-roster")
     return folder if os.path.isdir(folder) and load(folder) else None
+
+
+def count_photos(folder):
+    """How many loadable photos sit directly in `folder`."""
+    if not folder or not os.path.isdir(folder):
+        return 0
+    try:
+        return sum(1 for f in os.listdir(folder)
+                   if f.lower().endswith(IMAGE_TYPES))
+    except OSError:
+        return 0
+
+
+def photo_subfolders(folder, depth=2):
+    """Folders beneath `folder` that do hold photos, as (path, count).
+
+    Picking the parent by mistake is the easy slip: a thumbdrive holds
+    `rosters/headshots-hamilton`, the picker shows only folder names, and
+    `rosters` looks like the destination right up until the app reports
+    nothing in it. Rather than make someone guess which level was wrong,
+    look down a couple of levels and offer what is actually there.
+    """
+    found = []
+    if not folder or not os.path.isdir(folder) or depth < 1:
+        return found
+    try:
+        entries = sorted(os.listdir(folder), key=str.lower)
+    except OSError:
+        return found
+
+    for entry in entries:
+        path = os.path.join(folder, entry)
+        if not os.path.isdir(path):
+            continue
+        count = count_photos(path)
+        if count:
+            found.append((path, count))
+        else:
+            found.extend(photo_subfolders(path, depth - 1))
+    return found
