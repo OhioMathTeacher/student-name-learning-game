@@ -391,11 +391,37 @@ class RosterPrep(tk.Frame):
     def report_nothing_found(self, folder):
         """Say what was actually in there, rather than just "nothing".
 
-        The likely slips are picking the folder above the one holding the pages,
-        and saving as "HTML only" -- which writes a page with no images folder
-        beside it, and so is invisible to find_pages. Both look identical from a
-        bare "no rosters found", and neither is guessable from it.
+        Photos that are already prepared come first, because that message was
+        the worst one this app produced: pointed at a folder of twenty-one
+        correctly named faces it said "no saved roster pages", which is true
+        and reads as a lie. There is nothing to prepare there because the work
+        is done, and saying so is the whole answer.
+
+        After that the likely slips are picking the folder above the one
+        holding the pages, and saving as "HTML only" -- which writes a page
+        with no images beside it. Both look identical from a bare "no rosters
+        found", and neither is guessable from it.
         """
+        prepared = roster.discover(folder)
+        if prepared:
+            # Photos, handed over directly. Take them: the folder is the
+            # answer, not a thing to be quizzed about. Asking permission to
+            # accept what was just chosen is the same refusal in a politer
+            # voice.
+            root = roster.root_for(folder) or folder
+            roster.save_photo_root(root)
+            roster.save_last_folder(folder if roster.load(folder)
+                                    else prepared[0]["path"])
+            self.out_root = root
+            self.refresh_destination()
+            sections = roster.discover(root) or prepared
+            listing = "\n".join(f"\u2022  {s['label']} \u2014 {s['count']} photos"
+                                for s in sections[:8])
+            messagebox.showinfo(
+                "Roster Prep",
+                f"Using these. Name Game opens them now.\n\n{listing}")
+            return
+
         pages = []
         for dirpath, dirnames, filenames in os.walk(folder):
             dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -417,9 +443,11 @@ class RosterPrep(tk.Frame):
 
         messagebox.showwarning(
             "Roster Prep",
-            f"No saved roster pages under:\n{folder}\n\n"
-            "Choose the folder you saved the pages into — the one holding "
-            "the .html files and their image folders.")
+            f"Nothing to prepare under:\n{folder}\n\n"
+            "No saved roster pages, and no photos either.\n\n"
+            "This step wants the folder your browser saved the rosters into \u2014 "
+            "the .html files and their image folders. If you are looking for "
+            "photos you have already prepared, open those in Name Game instead.")
 
     # -- the plan -----------------------------------------------------
     def rebuild_plan(self):
