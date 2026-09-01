@@ -286,6 +286,7 @@ class QuizView(tk.Frame):
         self.longest = 0
         self.skips_left = 3
         self.game_over = False
+        self.answered = False
         if self.restart_btn is not None:
             self.restart_btn.destroy()
             self.restart_btn = None
@@ -302,6 +303,7 @@ class QuizView(tk.Frame):
             self.finish()
             return
         self.current = self.remaining[0]
+        self.answered = False
         self.used_hint = False
         self.hint_level = 0
         try:
@@ -322,11 +324,17 @@ class QuizView(tk.Frame):
         return given[0] == want[0] or (len(want) >= 2 and given[-1] == want[-1])
 
     def check(self):
-        if not self.current or self.game_over:
+        if not self.current or self.game_over or self.answered:
             return
         answer = self.entry.get().strip().lower()
+        if not answer:
+            # Enter on an empty box is a stray keystroke, not a wrong answer.
+            # It used to end the run, which is a cruel way to lose a streak of
+            # nineteen.
+            return
         correct = self.current["name"].lower()
-        if answer and (answer == correct or self.close_enough(answer, correct)):
+        self.answered = True
+        if answer == correct or self.close_enough(answer, correct):
             self.streak += 1
             self.longest = max(self.longest, self.streak)
             # Bank it now: quitting mid-run used to lose the whole streak.
@@ -366,8 +374,9 @@ class QuizView(tk.Frame):
         A skipped student goes to the back of the queue rather than away, so
         you still have to name them before the run is over.
         """
-        if not self.current or self.game_over:
+        if not self.current or self.game_over or self.answered:
             return
+        self.answered = True
         self.streak = 0
         name = self.current["name"]
         if self.skips_left > 0:
