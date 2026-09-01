@@ -353,12 +353,20 @@ def sample_folder():
 
 
 def count_photos(folder):
-    """How many loadable photos sit directly in `folder`."""
+    """How many loadable photos sit directly in `folder`.
+
+    Counted with `is_photo`, the same test `load` uses. Matching on extension
+    alone was a quieter version of the bug `sniff` exists to fix: the registrar
+    serves photos from URLs carrying no extension, so a prepared section is a
+    folder of bare `Smith_Alex` files. `load` opens them and finds a roster;
+    this counted zero, and the folder that photo_subfolders should have offered
+    was never mentioned.
+    """
     if not folder or not os.path.isdir(folder):
         return 0
     try:
         return sum(1 for f in os.listdir(folder)
-                   if f.lower().endswith(IMAGE_TYPES))
+                   if is_photo(os.path.join(folder, f), f))
     except OSError:
         return 0
 
