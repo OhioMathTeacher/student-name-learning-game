@@ -315,8 +315,8 @@ class RosterPrep(tk.Frame):
 
     def choose_out_root(self):
         """Point both apps at the folder your class folders sit in."""
-        folder = theme.ask_folder(self.root, self.out_root,
-                                  title="Folder to keep your class folders in")
+        folder = theme.ask_place(self.root, "Where should classes be kept?",
+                                 current=self.out_root)
         if not folder:
             return
         self.out_root = folder

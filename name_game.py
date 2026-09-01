@@ -670,10 +670,14 @@ class NameGame:
             self.set_folder(folder)
 
     def choose_photo_root(self):
-        """Point the app at the folder your class folders sit in."""
-        folder = theme.ask_folder(
-            self.root, self.photo_root or self.folder,
-            title="Folder holding your class folders")
+        """Point the app at the folder your class folders sit in.
+
+        Offers what is mounted rather than opening a folder picker: the answer
+        is usually the thumbdrive, and a picker opened on the place already in
+        use -- the one thing being changed.
+        """
+        folder = theme.ask_place(self.root, "Where should I look for classes?",
+                                 current=self.photo_root)
         if not folder:
             return
         found = roster.discover(folder)
