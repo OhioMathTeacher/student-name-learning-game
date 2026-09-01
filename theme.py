@@ -83,14 +83,23 @@ def ask_folder(parent, current=None, title="Select folder with student photos"):
     Without an initialdir Tk starts wherever the process was launched, which
     for these apps is the source folder. Without a parent the dialog can open
     behind the main window and look like the button did nothing.
+
+    A mounted thumbdrive comes before anything under home, because that is
+    where the photos actually live and Tk's folder chooser offers no sidebar
+    of volumes to reach it with -- it opened under home, and getting to
+    /run/media or a drive letter from there meant climbing to the filesystem
+    root by hand. `~/Thumbdrive`, which this used to reach for, is not a real
+    path on any of the three platforms.
     """
     import os
     from tkinter import filedialog
 
+    import roster
+
     candidates = [
         current,
+        *roster.removable_roots(),
         os.path.expanduser("~/Pictures/student-headshots"),
-        os.path.expanduser("~/Thumbdrive"),
         os.path.expanduser("~"),
     ]
     initial = next((c for c in candidates if c and os.path.isdir(c)), None)

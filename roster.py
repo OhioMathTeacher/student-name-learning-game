@@ -6,6 +6,7 @@ study mode showed one part of the name while quiz mode showed both.
 
 import json
 import os
+import sys
 
 IMAGE_TYPES = (".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".bmp", ".webp",
                ".tif", ".tiff")
@@ -298,6 +299,45 @@ def root_for(section_path):
     return os.path.dirname(section_path)
 
 
+def removable_roots():
+    """Every mounted drive that is not the system disk, best guess first.
+
+    The photos travel on a thumbdrive, and where that appears is entirely a
+    matter of platform: `/Volumes/NAME` on a Mac, `/run/media/todd/NAME` or
+    `/media/todd/NAME` on Linux, a bare drive letter on Windows. Only the Mac
+    case was ever looked for, so on the other two the drive was never offered
+    and the picker opened under home with no route to it -- Tk's folder chooser
+    gives you no sidebar of volumes to click.
+
+    Skips anything named in SKIP_DIRS, which is what keeps a 900GB drive
+    labelled MUSIC from being offered as somewhere to look for a class.
+    """
+    import glob
+    import string
+
+    found = []
+
+    def offer(path):
+        if (path and os.path.isdir(path) and path not in found
+                and os.path.basename(path.rstrip(os.sep)).lower() not in SKIP_DIRS):
+            found.append(path)
+
+    if sys.platform == "darwin":
+        for volume in sorted(glob.glob("/Volumes/*")):
+            offer(volume)
+    elif os.name == "nt":
+        for letter in string.ascii_uppercase[3:]:      # D: onward; C: is the system disk
+            offer(f"{letter}:\\")
+    else:
+        user = os.path.basename(os.path.expanduser("~"))
+        # Per-user mounts first: that is where a desktop actually mounts a
+        # thumbdrive. Bare /media/* last, because it also holds fixed disks.
+        for pattern in (f"/run/media/{user}/*", f"/media/{user}/*", "/media/*"):
+            for volume in sorted(glob.glob(pattern)):
+                offer(volume)
+    return found
+
+
 def candidate_roots():
     """Where to look for class folders, best guess first.
 
@@ -305,8 +345,6 @@ def candidate_roots():
     different path on each, so a remembered absolute path is a hint rather than
     an answer -- hence falling back to whatever is mounted now.
     """
-    import glob
-
     roots, seen = [], set()
 
     def offer(path):
@@ -316,7 +354,7 @@ def candidate_roots():
 
     offer(load_photo_root())
     offer(root_for(load_last_folder()))
-    for volume in sorted(glob.glob("/Volumes/*")):
+    for volume in removable_roots():
         offer(volume)
     for name in ("student-headshots", "Documents", "Desktop"):
         offer(os.path.join(os.path.expanduser("~"), name))
