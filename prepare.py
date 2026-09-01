@@ -34,10 +34,49 @@ ATTR = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
 COURSE = re.compile(r'([A-Z]{2,4}\s*\d+[A-Z]?)\s*:\s*([^(<]+)\(CRN\s*(\d+)\)')
 TERM = re.compile(r'\b(20\d{4})\b')
 
+# A roster page of 30 students runs to about 80KB. Anything far past that is
+# not one, and reading it is pure cost: a thumbdrive carrying an editor build
+# also carries multi-megabyte licence pages, and every page found has to be
+# read to know whether it is a roster.
+MAX_PAGE_BYTES = 4 * 1024 * 1024
+
 
 def files_dir(html_path):
     """The `..._files` folder the browser saved alongside the page."""
     return os.path.splitext(html_path)[0] + "_files"
+
+
+def image_dir(html_path, wanted=None):
+    """Where this page's photos actually are.
+
+    `<stem>_files` beside the page is what the browser writes, and what this
+    assumed. It stops being true the moment anyone tidies up: renaming the
+    page to say which campus leaves the folder named after the old title, and
+    dragging the page into its own images folder leaves the photos sitting
+    beside it rather than below. Both are ordinary things to do to two saved
+    rosters that would otherwise both be called "Photo Roster", and both made
+    a roster of 28 students unreadable.
+
+    So the page is asked instead of assumed: `wanted` is a filename it refers
+    to, and the directory that actually holds it wins. Falls back to the old
+    guess when the page names nothing.
+    """
+    beside = files_dir(html_path)
+    here = os.path.dirname(html_path)
+
+    candidates = [beside, here]
+    try:
+        candidates += sorted(
+            os.path.join(here, name) for name in os.listdir(here)
+            if name.endswith("_files") and os.path.isdir(os.path.join(here, name)))
+    except OSError:
+        pass
+
+    if wanted:
+        for candidate in candidates:
+            if os.path.isfile(os.path.join(candidate, wanted)):
+                return candidate
+    return beside if os.path.isdir(beside) else here
 
 
 def _attrs(tag):
@@ -75,21 +114,25 @@ def read(html_path):
         course = f"{number}: {title} (CRN {crn})"
 
     term = TERM.search(page)
-    directory = files_dir(html_path)
 
-    students = []
+    found = []
     for tag in IMG_TAG.findall(page):
         attrs = _attrs(tag)
         alt, src = attrs.get("alt", ""), attrs.get("src", "")
         if not alt or not src:
             continue
         last, _, first = alt.partition(",")
-        students.append({
-            "name": f"{_safe(first)} {_safe(last)}".strip(),
-            "stem": f"{_safe(last)}_{_safe(first)}" if first.strip() else _safe(last),
-            "source": os.path.join(directory, os.path.basename(
-                src.replace("%20", " ").split("/")[-1])),
-        })
+        found.append((
+            f"{_safe(first)} {_safe(last)}".strip(),
+            f"{_safe(last)}_{_safe(first)}" if first.strip() else _safe(last),
+            os.path.basename(src.replace("%20", " ").split("/")[-1]),
+        ))
+
+    directory = image_dir(html_path, found[0][2] if found else None)
+
+    students = [{"name": name, "stem": stem,
+                 "source": os.path.join(directory, filename)}
+                for name, stem, filename in found]
 
     # Default folder name: the course number alone. Two sections of the same
     # course differ only by CRN on this page -- no campus anywhere in it -- so
@@ -105,7 +148,7 @@ def read(html_path):
         "label": label,
         "students": students,
         "files_dir": directory,
-        "files_dir_exists": os.path.isdir(directory),
+        "files_dir_exists": bool(students) and os.path.isfile(students[0]["source"]),
     }
 
 
@@ -131,6 +174,15 @@ def suggest_label(html_path, info=None):
     """
     info = info or read(html_path)
     base = info["label"] or "section"
+
+    # The filename first: saving both sections into one folder and telling them
+    # apart by name -- "Photo Roster Hamilton.html" -- is as common as giving
+    # each a folder, and reading only the folder labelled both of them "318P".
+    stem = os.path.splitext(os.path.basename(html_path))[0].lower()
+    for campus in CAMPUSES:
+        if campus in stem:
+            return f"{base}-{campus.title().replace(' ', '')}"
+
     parts = os.path.normpath(os.path.dirname(os.path.abspath(html_path))).split(os.sep)
     for part in reversed(parts[-3:]):
         if part.lower() in CAMPUSES:
@@ -149,15 +201,27 @@ def find_pages(root, max_depth=4):
     root = os.path.abspath(root)
     depth0 = root.rstrip(os.sep).count(os.sep)
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames
-                       if not d.startswith(".") and not d.endswith("_files")]
+        # `_files` folders are walked into rather than pruned: a page dragged
+        # inside its own images folder is still a page, and pruning them was
+        # why a saved roster sitting there was invisible.
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")
+                       and d.lower() not in roster.SKIP_DIRS]
         if dirpath.count(os.sep) - depth0 >= max_depth:
             dirnames[:] = []
         for name in sorted(filenames):
-            if name.lower().endswith((".html", ".htm")):
-                page = os.path.join(dirpath, name)
-                if os.path.isdir(files_dir(page)):
-                    found.append(page)
+            if not name.lower().endswith((".html", ".htm")):
+                continue
+            page = os.path.join(dirpath, name)
+            try:
+                if os.path.getsize(page) > MAX_PAGE_BYTES:
+                    continue
+                info = read(page)
+            except OSError:
+                continue
+            # Its photos have to be findable, which is what separates a saved
+            # roster from every other page that happens to be lying about.
+            if info["students"] and info["files_dir_exists"]:
+                found.append(page)
     return found
 
 
