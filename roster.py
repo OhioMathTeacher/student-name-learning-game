@@ -263,6 +263,16 @@ def discover(root):
 
     sections = {}
 
+    def is_browser_junk(name):
+        """`Photo Roster-284_files`: what a browser writes beside a saved page.
+
+        Full of real photos, so it loads as a section of 25 students -- named
+        `photo_9d2f1a` apiece, because the registrar's image URLs carry no
+        names. Offered from the Desktop it looks exactly like a class and
+        quizzes you on nothing. Roster Prep reads these; nothing else should.
+        """
+        return name.lower().endswith("_files")
+
     def add(path):
         path = os.path.normpath(path)
         if path in sections or not os.path.isdir(path):
@@ -275,7 +285,8 @@ def discover(root):
     add(root)                       # pointed straight at one section's photos
     for name in children(root):
         classdir = os.path.join(root, name)
-        if not os.path.isdir(classdir) or name.lower() in SKIP_DIRS:
+        if (not os.path.isdir(classdir) or name.lower() in SKIP_DIRS
+                or is_browser_junk(name)):
             continue
         add(classdir)               # a section folder sitting at the root
         for sub in children(classdir):
