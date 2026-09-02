@@ -110,6 +110,34 @@ def ask_folder(parent, current=None, title="Select the folder with your student 
     )
 
 
+def _imaging():
+    """Pillow's Image and ImageTk, or a RuntimeError saying how to get them.
+
+    Pillow ships the Tk bridge separately on most Linux distributions, so a
+    machine can have a perfectly good Pillow that cannot hand an image to a Tk
+    window. What that looks like from here is every photo replaced by
+
+        cannot import name 'ImageTk' from 'PIL'
+
+    which is true, and tells a teacher standing in front of a class precisely
+    nothing. The install line for the platform is the useful half.
+    """
+    try:
+        from PIL import Image, ImageTk
+        return Image, ImageTk
+    except ImportError as exc:
+        if os.path.exists("/etc/fedora-release") or os.path.exists("/etc/redhat-release"):
+            fix = "sudo dnf install python3-pillow-tk"
+        elif os.path.exists("/etc/debian_version"):
+            fix = "sudo apt install python3-pil.imagetk"
+        else:
+            fix = "pip install --upgrade pillow"
+        raise RuntimeError(
+            "Pillow cannot draw into a window on this machine.\n\n"
+            f"Install the missing piece, then reopen Name Game:\n\n    {fix}\n\n"
+            f"({exc})") from exc
+
+
 PHOTO_BOX = 320  # every photo renders into a square of exactly this size
 
 
@@ -121,7 +149,7 @@ def photo(path, box=PHOTO_BOX, bg=SURFACE):
     different size and the window resized under the reader. Here the image is
     scaled to fit -- up or down -- and centred on a mat of the exact box size.
     """
-    from PIL import Image, ImageTk
+    Image, ImageTk = _imaging()
 
     img = Image.open(path).convert("RGB")
     scale = min(box / img.width, box / img.height)
