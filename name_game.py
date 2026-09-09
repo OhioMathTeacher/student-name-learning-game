@@ -13,6 +13,8 @@ because it is a start-of-term task and this is a daily one.
 
 import os
 import random
+import subprocess
+import sys
 import webbrowser
 import tkinter as tk
 from tkinter import messagebox
@@ -587,6 +589,8 @@ class NameGame:
         self.refresh_class_menu()
         file_menu.add_command(label="Change photo folder…",
                               command=self.choose_folder)
+        file_menu.add_command(label="Add a section from a saved roster…",
+                              command=self.open_roster_prep)
         file_menu.add_separator()
         file_menu.add_radiobutton(label="Study", variable=self.mode, value="study",
                                   command=lambda: self.show("study"))
@@ -712,6 +716,27 @@ class NameGame:
         self.course_label.config(text=self.section)
         for view in (self.study, self.quiz):
             view.on_roster_changed()
+
+    def open_roster_prep(self):
+        """Start Roster Prep from in here, so it needs no launcher of its own.
+
+        A separate process rather than another screen: the two have their own
+        window sizing and their own idea of what is on show, and running them
+        in one process is what used to make the window jump.
+        """
+        base = os.path.dirname(os.path.abspath(__file__))
+        script = os.path.join(base, "roster_prep.py")
+        if getattr(sys, "frozen", False) or not os.path.isfile(script):
+            messagebox.showinfo(
+                "Name Game",
+                "Roster Prep is not installed beside this copy of Name Game.\n\n"
+                "It travels on the thumbdrive, in the name-game folder.")
+            return
+        try:
+            subprocess.Popen([sys.executable, script], cwd=base)
+        except OSError as exc:
+            messagebox.showerror(
+                "Name Game", f"Could not start Roster Prep.\n\n{exc}")
 
     def set_folder(self, folder, klass=None, announce=True):
         """Load every photo in `folder`, then show `klass` (or all of them)."""
