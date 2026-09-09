@@ -526,6 +526,27 @@ class WelcomeView(tk.Frame):
             self.app.show("study")
 
 
+def _short_path(path, limit=46):
+    """The tail of `path`, enough to recognise without widening the menu.
+
+    A menu sizes itself to its longest entry, and the head of a photo folder
+    path -- /run/media/todd/ -- is the uninteresting half. Whole components are
+    kept so the result still reads as a path rather than a truncated string.
+    """
+    if not path:
+        return "no folder chosen yet"
+    if len(path) <= limit:
+        return path
+    parts = path.split(os.sep)
+    tail = parts[-1]
+    for part in reversed(parts[:-1]):
+        wider = part + os.sep + tail
+        if len(wider) + 2 > limit:
+            break
+        tail = wider
+    return "\u2026" + os.sep + tail
+
+
 class NameGame:
     def __init__(self, root):
         self.root = root
@@ -564,7 +585,13 @@ class NameGame:
         # folder -- the remembered one, or whichever drive is mounted this time.
         # The class last practised is then a filter over what is already loaded,
         # not another folder to go and find.
-        folder = roster.load_folder() or roster.find_folder()
+        # The remembered path is a hint rather than an answer. A folder that
+        # still exists can have been emptied, or belong to a different drive
+        # that mounted where the last one did, so it has to earn its place by
+        # actually holding photos -- otherwise go and look.
+        remembered = roster.load_folder()
+        folder = (remembered if remembered and roster.load(remembered)
+                  else roster.find_folder())
         if folder:
             self.set_folder(folder, roster.load_last_class(), announce=False)
 
@@ -574,23 +601,22 @@ class NameGame:
         theme.fit_window(self.root)
 
     def _build_menu(self):
+        """Two menus: what you are doing, and where the photos come from.
+
+        Finding photos used to sit in the middle of File, between the class
+        list and the mode switches, with nothing anywhere saying which folder
+        was in use. That is what made a remembered path feel like a hard-coded
+        one. Setup answers "where is it reading from" before it offers to
+        change it.
+        """
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
+
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Where photos come from\u2026",
-                              command=lambda: self.show("welcome"))
-        self.roster_menu = tk.Menu(file_menu, tearoff=0)
-        file_menu.add_cascade(label="Open a roster in the browser",
-                              menu=self.roster_menu)
-        self.refresh_roster_menu()
         self.class_menu = tk.Menu(file_menu, tearoff=0)
         file_menu.add_cascade(label="Class", menu=self.class_menu)
         self.refresh_class_menu()
-        file_menu.add_command(label="Change photo folder…",
-                              command=self.choose_folder)
-        file_menu.add_command(label="Add a section from a saved roster…",
-                              command=self.open_roster_prep)
         file_menu.add_separator()
         file_menu.add_radiobutton(label="Study", variable=self.mode, value="study",
                                   command=lambda: self.show("study"))
@@ -600,6 +626,67 @@ class NameGame:
                                   value="welcome", command=lambda: self.show("welcome"))
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
+
+        self.setup_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Setup", menu=self.setup_menu)
+        self.roster_menu = tk.Menu(self.setup_menu, tearoff=0)
+        self.refresh_roster_menu()
+        self.refresh_setup_menu()
+
+    def refresh_setup_menu(self):
+        """Rebuild Setup so the folder it names is the one actually in use.
+
+        Written out each time rather than cached: the folder changes from the
+        picker, from looking again, and from Roster Prep writing a new one, and
+        a menu still naming the old one is worse than no menu at all.
+        """
+        menu = self.setup_menu
+        menu.delete(0, tk.END)
+        menu.add_command(label="Photos are in:", state=tk.DISABLED)
+        menu.add_command(label="    " + _short_path(self.folder), state=tk.DISABLED)
+        if self.all_students:
+            found = len(roster.classes(self.all_students))
+            summary = f"    {len(self.all_students)} photos"
+            if found:
+                summary += f", {found} classes" if found > 1 else ", 1 class"
+            menu.add_command(label=summary, state=tk.DISABLED)
+        menu.add_separator()
+        menu.add_command(label="Choose a different folder\u2026",
+                         command=self.choose_folder)
+        menu.add_command(label="Look for them automatically",
+                         command=self.find_photos)
+        menu.add_separator()
+        menu.add_command(label="Add a section from a saved roster\u2026",
+                         command=self.open_roster_prep)
+        menu.add_cascade(label="Open a roster in the browser", menu=self.roster_menu)
+        menu.add_command(label="Where photos come from\u2026",
+                         command=lambda: self.show("welcome"))
+
+    def find_photos(self):
+        """Look at whatever is mounted now, rather than trusting the memory.
+
+        The remembered path is a hint: one drive is `/Volumes/NAME` on a Mac,
+        `/run/media/<user>/NAME` here and a bare letter on a lab PC. This is
+        what to reach for when the app has opened somewhere new.
+        """
+        folder = roster.find_folder()
+        if not folder:
+            volumes = roster.removable_roots()
+            where = ("\n".join("    " + v for v in volumes) if volumes
+                     else "    (no removable drive is mounted)")
+            messagebox.showwarning(
+                "Name Game",
+                f"No photos found automatically.\n\n"
+                f"Looked for a folder called {roster.FOLDER_NAME} at the top of:\n"
+                f"{where}\n    ~/Pictures\n    ~\n\n"
+                "Use \u201cChoose a different folder\u2026\u201d if they are "
+                "somewhere else.")
+            return
+        if folder == self.folder:
+            messagebox.showinfo(
+                "Name Game", f"Already using the best match:\n\n{folder}")
+            return
+        self.set_folder(folder)
 
     def _bind_keys(self):
         def shortcut(action):
@@ -752,6 +839,7 @@ class NameGame:
         roster.save_folder(folder)
         self.refresh_class_menu()
         self.set_class(self.klass if klass is None else klass)
+        self.refresh_setup_menu()
 
 
 def main():
