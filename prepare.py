@@ -161,24 +161,39 @@ def is_placeholder(path):
 CAMPUSES = ("oxford", "hamilton", "middletown", "west chester", "luxembourg")
 
 
+def _campus_in(text):
+    """The campus `text` names, or "". Separators read as spaces.
+
+    A folder is hardly ever called just `Oxford`: it is `318P-Oxford`, because
+    that is what tells two sections of one course apart at a glance. Matching
+    the whole name against the list missed every one of those, so both 318P
+    sections came back with no campus and merged into one class of 57.
+    """
+    text = re.sub(r"[-_.]+", " ", text.lower())
+    for campus in CAMPUSES:
+        if campus in text:
+            return campus.title()
+    return ""
+
+
 def suggest_location(html_path):
     """`Hamilton`, read off where the page was saved or what it was called.
 
     The page itself never says: two sections of one course differ on it only by
     CRN. But naming the saved file `318p-hamilton-FA26.html`, or filing it under
-    a folder called Hamilton, is what people already do -- so read it back
-    rather than making them retype it. Getting this wrong merges two sections
-    into one class, which looks perfectly normal until November.
+    a folder called `318P-Hamilton`, is what people already do -- so read it
+    back rather than making them retype it. Getting this wrong merges two
+    sections into one class, which looks perfectly normal until November.
     """
-    stem = os.path.splitext(os.path.basename(html_path))[0].lower()
-    for campus in CAMPUSES:
-        if campus in stem:
-            return campus.title()
+    found = _campus_in(os.path.splitext(os.path.basename(html_path))[0])
+    if found:
+        return found
 
     parts = os.path.normpath(os.path.dirname(os.path.abspath(html_path))).split(os.sep)
     for part in reversed(parts[-3:]):
-        if part.lower() in CAMPUSES:
-            return part.title()
+        found = _campus_in(part)
+        if found:
+            return found
     return ""
 
 
