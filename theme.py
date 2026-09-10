@@ -39,6 +39,75 @@ def font(size, weight="normal"):
     return (FAMILY, size, weight)
 
 
+class _FlatButton(tk.Label):
+    """A button drawn as a label, because macOS will not colour a real one.
+
+    Aqua draws tk.Button itself and quietly ignores bg and activebackground.
+    On this dark palette that left near-white text sitting on the native
+    near-white capsule -- every button on a Mac was legible only by its
+    outline, while Linux and Windows looked exactly as intended. A Label takes
+    the colours it is given on all three platforms, and these buttons were
+    already flat, so nothing native was being used in the first place.
+
+    What a Label does not bring is the click behaviour, so that is bound here:
+    the hover colour, and a command that a disabled button does not run.
+    """
+
+    def __init__(self, parent, text, command, primary=False, **kw):
+        self._command = command
+        self._rest = kw.pop("bg", ACCENT if primary else SURFACE)
+        self._hover = kw.pop("activebackground",
+                             ACCENT_ACTIVE if primary else SURFACE_ACTIVE)
+        super().__init__(
+            parent,
+            text=text,
+            font=font(13, "bold"),
+            bg=self._rest,
+            fg=kw.pop("fg", TEXT),
+            disabledforeground=MUTED,
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            padx=18,
+            pady=10,
+            cursor="hand2",
+            **kw
+        )
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+
+    def _enabled(self):
+        return str(self["state"]) != tk.DISABLED
+
+    def _on_click(self, _event):
+        if self._enabled() and self._command:
+            self._command()
+
+    def _on_enter(self, _event):
+        if self._enabled():
+            tk.Label.configure(self, bg=self._hover)
+
+    def _on_leave(self, _event):
+        tk.Label.configure(self, bg=self._rest)
+
+    def configure(self, cnf=None, **kw):
+        """Recolouring a button has to move its hover colour with it.
+
+        `Auto-advance` turns into a red `Stop` by being reconfigured, and if
+        only the resting colour changed the next mouseover would put the old
+        blue back.
+        """
+        if "bg" in kw or "background" in kw:
+            self._rest = kw.get("bg", kw.get("background"))
+        if "activebackground" in kw:
+            self._hover = kw.pop("activebackground")
+        if "command" in kw:
+            self._command = kw.pop("command")
+        return tk.Label.configure(self, cnf, **kw)
+
+    config = configure
+
+
 def button(parent, text, command, primary=False, **kw):
     """A flat, evenly padded button.
 
@@ -46,25 +115,7 @@ def button(parent, text, command, primary=False, **kw):
     with a hairline border. Flat beats the old raised 3px bevel, which read as
     a 1990s dialog once the display scaling made it three pixels of chrome.
     """
-    return tk.Button(
-        parent,
-        text=text,
-        command=command,
-        font=font(13, "bold"),
-        bg=ACCENT if primary else SURFACE,
-        fg=TEXT,
-        activebackground=ACCENT_ACTIVE if primary else SURFACE_ACTIVE,
-        activeforeground=TEXT,
-        relief=tk.FLAT,
-        bd=0,
-        highlightthickness=1,
-        highlightbackground=BORDER,
-        highlightcolor=BORDER,
-        padx=18,
-        pady=10,
-        cursor="hand2",
-        **kw
-    )
+    return _FlatButton(parent, text, command, primary=primary, **kw)
 
 
 def label(parent, text="", size=13, weight="normal", fg=None, **kw):
