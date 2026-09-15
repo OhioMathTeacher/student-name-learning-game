@@ -15,6 +15,7 @@ and every one of them a way to point at the wrong folder.
 import json
 import os
 import re
+import shutil
 import sys
 
 IMAGE_TYPES = (".jpg", ".jpeg", ".jpe", ".jfif", ".png", ".gif", ".bmp", ".webp",
@@ -179,10 +180,52 @@ def in_class(students, label):
 
 # -- where the folder is ----------------------------------------------------
 
+def settings_dir():
+    return os.path.join(os.path.expanduser("~"), ".student_name_game")
+
+
 def config_path():
-    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    d = settings_dir()
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "config.json")
+
+
+def app_dir():
+    """The folder the app was started from: this file's, or the .exe's.
+
+    PyInstaller unpacks a one-file build somewhere under the temp folder, so
+    `__file__` says nothing about where the exe was double-clicked.
+    """
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def restore_settings():
+    """Bring hints, scores and the class list over, once, per computer.
+
+    They travel on the drive as app-data, beside the app -- or, when the app
+    is an exe at the top of the drive, inside the name-game folder next to
+    it. Never overwrites: a machine that already has hints on it has better
+    ones than the copy travelling on the drive.
+    """
+    if os.path.isdir(settings_dir()):
+        return
+    base = app_dir()
+    for spare in (os.path.join(base, "app-data"),
+                  os.path.join(base, "name-game", "app-data")):
+        if os.path.isdir(spare):
+            break
+    else:
+        return
+    os.makedirs(settings_dir(), exist_ok=True)
+    for name in os.listdir(spare):
+        if name.endswith(".json"):
+            try:
+                shutil.copy2(os.path.join(spare, name),
+                             os.path.join(settings_dir(), name))
+            except OSError:
+                pass
 
 
 def _read_config():

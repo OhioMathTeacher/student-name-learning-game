@@ -14,14 +14,12 @@ neither carries logic worth keeping in step.
 """
 
 import os
-import shutil
 import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WINDOWS = os.name == "nt"
 MAC = sys.platform == "darwin"
-SETTINGS = os.path.join(os.path.expanduser("~"), ".student_name_game")
 
 
 def pause(*lines):
@@ -58,27 +56,6 @@ def python_help():
                 "and keep the default options."]
     return ["Fedora:        sudo dnf install python3-tkinter python3-pillow-tk",
             "Debian/Ubuntu: sudo apt install python3-tk python3-pil.imagetk"]
-
-
-def restore_settings():
-    """Bring hints, scores and the class list over, once, per computer.
-
-    Never overwrites: a machine that already has hints on it has better ones
-    than the copy travelling on the drive.
-    """
-    if os.path.isdir(SETTINGS):
-        return
-    spare = os.path.join(HERE, "app-data")
-    if not os.path.isdir(spare):
-        return
-    print("  Restoring your saved hints and scores...")
-    os.makedirs(SETTINGS, exist_ok=True)
-    for name in os.listdir(spare):
-        if name.endswith(".json"):
-            try:
-                shutil.copy2(os.path.join(spare, name), os.path.join(SETTINGS, name))
-            except OSError:
-                pass
 
 
 def ensure_pillow():
@@ -121,7 +98,6 @@ def main():
         pause("This Python cannot open windows (no tkinter).", *python_help())
         return 1
 
-    restore_settings()
     if not ensure_pillow():
         return 1
 

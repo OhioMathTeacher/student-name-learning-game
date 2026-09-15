@@ -811,16 +811,22 @@ class NameGame:
         window sizing and their own idea of what is on show, and running them
         in one process is what used to make the window jump.
         """
-        base = os.path.dirname(os.path.abspath(__file__))
-        script = os.path.join(base, "roster_prep.py")
-        if getattr(sys, "frozen", False) or not os.path.isfile(script):
+        base = roster.app_dir()
+        if getattr(sys, "frozen", False):
+            # The Windows build ships as two exes side by side.
+            exe = os.path.join(base, "RosterPrep.exe")
+            command = [exe] if os.path.isfile(exe) else None
+        else:
+            script = os.path.join(base, "roster_prep.py")
+            command = [sys.executable, script] if os.path.isfile(script) else None
+        if not command:
             messagebox.showinfo(
                 "Name Game",
                 "Roster Prep is not installed beside this copy of Name Game.\n\n"
-                "It travels on the thumbdrive, in the name-game folder.")
+                "It travels on the thumbdrive, next to Name Game.")
             return
         try:
-            subprocess.Popen([sys.executable, script], cwd=base)
+            subprocess.Popen(command, cwd=base)
         except OSError as exc:
             messagebox.showerror(
                 "Name Game", f"Could not start Roster Prep.\n\n{exc}")
@@ -843,6 +849,7 @@ class NameGame:
 
 
 def main():
+    roster.restore_settings()
     root = tk.Tk()
     NameGame(root)
     root.mainloop()
