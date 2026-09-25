@@ -527,7 +527,7 @@ class WelcomeView(tk.Frame):
         folder = roster.sample_folder()
         if folder:
             self.app.set_folder(folder)
-            self.app.show("study")
+            self.app.show("quiz")
 
 
 def _short_path(path, limit=46):
@@ -580,7 +580,7 @@ class NameGame:
             view.grid(row=0, column=0, sticky="nsew")
         self.course_label.lift()   # the container is packed over it otherwise
 
-        self.mode = tk.StringVar(value="study")
+        self.mode = tk.StringVar(value="quiz")
         self.class_var = tk.StringVar(value="")
         self._build_menu()
         self._bind_keys()
@@ -601,7 +601,7 @@ class NameGame:
 
         # A colleague opening this for the first time has no photos yet, so
         # start them on the screen that makes some rather than an empty picker.
-        self.show("study" if self.students else "welcome")
+        self.show("quiz" if self.students else "welcome")
         theme.fit_window(self.root)
 
     def _build_menu(self):
