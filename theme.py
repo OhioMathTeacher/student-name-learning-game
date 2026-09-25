@@ -129,7 +129,7 @@ def label(parent, text="", size=13, weight="normal", fg=None, **kw):
     )
 
 
-def ask_folder(parent, current=None, title="Select the folder with your student photos"):
+def ask_folder(parent, current=None, title="Select the folder with your photos"):
     """Folder picker that opens somewhere useful and stays in front.
 
     Without an initialdir Tk starts wherever the process was launched, which

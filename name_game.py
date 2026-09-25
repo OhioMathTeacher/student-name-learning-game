@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Name Game - learn your students' names from their photos.
+"""Name Game - learn people's names from their photos.
 
 One window, two screens. Study walks the roster showing each name; Quiz hides
 it and asks. They were separate programs, and switching modes actually quit one
@@ -134,7 +134,7 @@ class StudyView(tk.Frame):
             return
         self.index %= len(students)
         student = students[self.index]
-        self.counter_label.config(text=f"Student {self.index + 1} of {len(students)}")
+        self.counter_label.config(text=f"Person {self.index + 1} of {len(students)}")
         try:
             photo = theme.photo(student["path"])
             self.photo_label.config(image=photo, text="")
@@ -236,7 +236,7 @@ class QuizView(tk.Frame):
                                     highlightthickness=1, highlightbackground=theme.BORDER)
         self.photo_label.pack(pady=(28, 18))
 
-        theme.label(self, "Student's name", size=theme.SIZE_BODY, fg=theme.MUTED).pack()
+        theme.label(self, "Name", size=theme.SIZE_BODY, fg=theme.MUTED).pack()
         self.entry = tk.Entry(
             self, font=theme.font(theme.SIZE_INPUT), width=22, justify="center",
             bg=theme.SURFACE, fg=theme.TEXT, insertbackground=theme.TEXT,
@@ -402,10 +402,10 @@ class QuizView(tk.Frame):
         total = len(self.app.students)
         done = total - len(self.remaining)
         if not self.remaining and len(self.perfect) == total:
-            text, colour = (f"Perfect game\n\nAll {total} students, no hints used."
+            text, colour = (f"Perfect game\n\nAll {total} people, no hints used."
                             f"\nLongest streak {self.longest}", theme.OK)
         elif not self.remaining:
-            text, colour = (f"Finished\n\nAll {total} students."
+            text, colour = (f"Finished\n\nAll {total} people."
                             f"\nWithout hints {len(self.perfect)}"
                             f"\nLongest streak {self.longest}", theme.ACCENT)
         else:
@@ -475,7 +475,7 @@ class WelcomeView(tk.Frame):
         theme.label(inner, "No photos yet", size=theme.SIZE_FEATURE,
                     weight="bold").pack()
         theme.label(inner,
-                    "Name Game practises names from a folder of student photos.\n"
+                    "Name Game practises names from a folder of photos.\n"
                     "Roster Prep builds those folders from your photo rosters.",
                     size=theme.SIZE_BODY, fg=theme.MUTED,
                     justify="center").pack(pady=(10, 0))
@@ -771,7 +771,7 @@ class NameGame:
             self.set_folder(folder)
 
     def refresh_class_menu(self):
-        """All students, then one entry per class found in the folder.
+        """Everyone, then one entry per class found in the folder.
 
         Rebuilt from what is loaded rather than cached, so a class shows up the
         moment Roster Prep writes it instead of after a restart. Every class
@@ -781,7 +781,7 @@ class NameGame:
         self.class_menu.delete(0, tk.END)
         found = roster.classes(self.all_students)
         self.class_menu.add_radiobutton(
-            label=f"All students   ({len(self.all_students)})",
+            label=f"All people   ({len(self.all_students)})",
             variable=self.class_var, value="",
             command=lambda: self.set_class(""))
         if not found:
