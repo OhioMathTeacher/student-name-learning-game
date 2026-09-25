@@ -192,6 +192,9 @@ sections.json
 NO-PHOTO.txt
 *.jpg
 *.jpeg
+# ...except the bundled sample roster, which is public-domain material rather than
+# student data, and must be tracked: it is what --add-data ships into the executables.
+!sample-roster/*.jpg
 
 # Internal working notes -- local only, not for public consumption
 NEXT-STEPS.md

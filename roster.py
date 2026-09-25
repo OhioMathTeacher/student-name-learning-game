@@ -340,10 +340,12 @@ def default_folder():
 
 
 def sample_folder():
-    """The five fictional students shipped with the app, or None if absent.
+    """The sample photographs shipped with the app, or None if absent.
 
-    Lets someone try the app before they have prepared a real roster -- and
-    means a demo never needs student photos on screen.
+    People, places and presidents -- public domain throughout, in three classes.
+    Lets someone try the app before they have prepared a real roster, and means a
+    demo never needs a student's photograph on screen, which matters here: the
+    app's whole promise is that the photos never leave your machine.
     """
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     folder = os.path.join(base, "sample-roster")

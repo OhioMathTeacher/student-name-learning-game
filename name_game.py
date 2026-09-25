@@ -501,8 +501,12 @@ class WelcomeView(tk.Frame):
 
         foot = tk.Frame(inner, bg=theme.BG)
         foot.pack(pady=(20, 0))
-        if roster.sample_folder():
-            self._link(foot, "Try it with 5 sample students", self.load_sample,
+        sample = roster.sample_folder()
+        if sample:
+            # Counted from the folder, never typed: the roster has changed size twice
+            # already, and a label that lies about it is worse than no label.
+            n = len(roster.load(sample))
+            self._link(foot, "Try it with %d sample photos" % n, self.load_sample,
                        fg=theme.ACCENT).pack(side=tk.LEFT, padx=(24, 0))
 
     # -- lifecycle ----------------------------------------------------
