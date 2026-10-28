@@ -23,6 +23,7 @@ from tkinter import filedialog, messagebox
 import prepare
 import progress
 import roster
+import tictactoe
 import theme
 
 
@@ -795,6 +796,9 @@ class NameGame:
                                   command=lambda: self.show("quiz"))
         file_menu.add_radiobutton(label="Welcome", variable=self.mode,
                                   value="welcome", command=lambda: self.show("welcome"))
+        file_menu.add_separator()
+        file_menu.add_command(label="Face-down tic-tac-toe\u2026",
+                              command=lambda: tictactoe.TicTacToe(self))
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
 
