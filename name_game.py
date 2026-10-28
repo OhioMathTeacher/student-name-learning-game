@@ -21,6 +21,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import prepare
+import progress
 import roster
 import theme
 
@@ -794,10 +795,15 @@ class NameGame:
         file_menu.add_radiobutton(label="Welcome", variable=self.mode,
                                   value="welcome", command=lambda: self.show("welcome"))
         file_menu.add_separator()
-        file_menu.add_command(label="Export data\u2026", command=self.export_data)
-        file_menu.add_command(label="Import data\u2026", command=self.import_data)
-        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
+
+        data_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Data", menu=data_menu)
+        data_menu.add_command(label="Your progress\u2026",
+                              command=lambda: progress.ProgressWindow(self, copies))
+        data_menu.add_separator()
+        data_menu.add_command(label="Export data\u2026", command=self.export_data)
+        data_menu.add_command(label="Import data\u2026", command=self.import_data)
 
         self.setup_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Setup", menu=self.setup_menu)
