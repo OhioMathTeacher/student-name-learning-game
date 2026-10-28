@@ -99,6 +99,8 @@ jobs:
   create-release:
     needs: [build-windows, build-macos-arm64]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # attach the builds to the release; the default token is read-only
     if: github.event_name == 'release'
     steps:
     - name: Download all artifacts
