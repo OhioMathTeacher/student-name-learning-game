@@ -797,27 +797,15 @@ class NameGame:
     def switch_data(self):
         """Move where hints, marks, scores and the quiz log are kept.
 
-        Asks whether to bring the current files along, because switching
-        without them looks like losing everything, and copying over the top
-        of the other side's files would actually lose them.
+        The data comes along, and play carries on as though nothing happened.
+        Anything already at the new place is set aside as .before-switch rather
+        than mixed in, so nothing is lost and there is no merge to get wrong.
         """
         on = self.data_var.get() == "app"
         if on == roster.keeps_data_with_app():
             return
-        target = roster.app_data_dir() if on else roster.home_data_dir()
-        answer = messagebox.askyesnocancel(
-            "Name Game",
-            "Bring your current hints, marks, scores and quiz log along to\n\n"
-            f"    {target}\n\n"
-            "Yes: copy them there. Files already there are kept, renamed\n"
-            "with .before-switch on the end.\n"
-            "No: switch, and use whatever is already there.\n"
-            "Cancel: leave things as they are.")
-        if answer is None:
-            self.refresh_setup_menu()
-            return
         try:
-            roster.keep_data_with_app(on, copy_over=answer)
+            roster.keep_data_with_app(on, copy_over=True)
         except OSError as exc:
             messagebox.showerror("Name Game", f"Could not switch.\n\n{exc}")
         self.study.show()
