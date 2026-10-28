@@ -18,7 +18,7 @@ import sys
 import time
 import webbrowser
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import filedialog, messagebox
 
 import prepare
 import roster
@@ -96,6 +96,52 @@ def deal(students):
                     order.insert(i, order.pop(j))
                     break
     return order
+
+
+def _describe_bundle(bundle):
+    """`46 hints, 2 marks, 125 quiz answers from MacGuffey on 2026-10-28`."""
+    files = bundle.get("files", {})
+    def count(n, word):
+        return f"{n} {word}{'' if n == 1 else 's'}"
+    parts = [count(len(files.get("hints.json") or {}), "hint"),
+             count(len(files.get("difficult.json") or {}), "mark"),
+             count(len(bundle.get("quiz_log") or []), "quiz answer")]
+    where = bundle.get("from")
+    when = (bundle.get("exported") or "")[:10]
+    return ", ".join(parts) + (f" from {where}" if where else "") + (f" on {when}" if when else "")
+
+
+def _ask_import(root, bundle):
+    """Add to, Replace, or Cancel: three plain buttons, since yes/no/cancel
+    would make the reader work out which of those means which."""
+    win = tk.Toplevel(root, bg=theme.BG)
+    win.title("Import data")
+    win.transient(root)
+    win.resizable(False, False)
+    choice = {"value": None}
+
+    def pick(value):
+        choice["value"] = value
+        win.destroy()
+
+    theme.label(win, "This file holds", size=theme.SIZE_BODY,
+                fg=theme.MUTED).pack(padx=28, pady=(24, 2), anchor="w")
+    theme.label(win, _describe_bundle(bundle), size=theme.SIZE_LABEL, weight="bold",
+                wraplength=520, justify="left").pack(padx=28, anchor="w")
+    theme.label(win, "Add it to the data on this computer, or replace that data "
+                "with it? Either way, what is here now is kept as a .before-import copy.",
+                size=theme.SIZE_BODY, wraplength=520,
+                justify="left").pack(padx=28, pady=(14, 18), anchor="w")
+    row = tk.Frame(win, bg=theme.BG)
+    row.pack(padx=28, pady=(0, 24), anchor="e")
+    theme.button(row, "Add to my data", lambda: pick("add"), primary=True).pack(side=tk.LEFT, padx=6)
+    theme.button(row, "Replace my data", lambda: pick("replace")).pack(side=tk.LEFT, padx=6)
+    theme.button(row, "Cancel", lambda: pick(None)).pack(side=tk.LEFT, padx=6)
+    win.protocol("WM_DELETE_WINDOW", lambda: pick(None))
+    win.bind("<Escape>", lambda e: pick(None))
+    win.grab_set()
+    root.wait_window(win)
+    return choice["value"]
 
 
 class StudyView(tk.Frame):
@@ -748,6 +794,9 @@ class NameGame:
         file_menu.add_radiobutton(label="Welcome", variable=self.mode,
                                   value="welcome", command=lambda: self.show("welcome"))
         file_menu.add_separator()
+        file_menu.add_command(label="Export data\u2026", command=self.export_data)
+        file_menu.add_command(label="Import data\u2026", command=self.import_data)
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
 
         self.setup_menu = tk.Menu(menubar, tearoff=0)
@@ -793,6 +842,55 @@ class NameGame:
         menu.add_radiobutton(label="With the app (travels on the drive)", value="app",
                              variable=self.data_var, command=self.switch_data,
                              state=tk.NORMAL if roster.app_data_dir() else tk.DISABLED)
+
+    def export_data(self):
+        """Save everything the game has learned into one .json file."""
+        from datetime import date
+
+        docs = os.path.join(os.path.expanduser("~"), "Documents")
+        path = filedialog.asksaveasfilename(
+            parent=self.root, title="Export Name Game data",
+            defaultextension=".json", filetypes=[("Name Game data", "*.json")],
+            initialdir=docs if os.path.isdir(docs) else os.path.expanduser("~"),
+            initialfile=f"name-game-data-{date.today().isoformat()}.json")
+        if not path:
+            return
+        try:
+            bundle = roster.export_data(path)
+        except OSError as exc:
+            messagebox.showerror("Name Game", f"Could not save.\n\n{exc}")
+            return
+        messagebox.showinfo("Name Game", "Saved " + _describe_bundle(bundle)
+                            + f"\n\nto {path}")
+
+    def import_data(self):
+        """Bring in a file from Export data, adding to or replacing what is here."""
+        path = filedialog.askopenfilename(
+            parent=self.root, title="Import Name Game data",
+            filetypes=[("Name Game data", "*.json"), ("All files", "*")])
+        if not path:
+            return
+        try:
+            bundle = roster.read_export(path)
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Name Game", f"Could not read that file.\n\n{exc}")
+            return
+        choice = _ask_import(self.root, bundle)
+        if choice is None:
+            return
+        try:
+            roster.import_data(bundle, replace=(choice == "replace"))
+        except OSError as exc:
+            messagebox.showerror("Name Game", f"Could not import.\n\n{exc}")
+            return
+        self.study.show()
+        self.study.refresh_streaks()
+        self.refresh_roster_menu()
+        messagebox.showinfo(
+            "Name Game",
+            ("Replaced" if choice == "replace" else "Added") + " "
+            + _describe_bundle(bundle) + ".\n\nWhat was here before is kept beside "
+            "it with .before-import on the end.")
 
     def switch_data(self):
         """Move where hints, marks, scores and the quiz log are kept.

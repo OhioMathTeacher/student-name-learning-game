@@ -222,6 +222,145 @@ def app_data_dir():
     return None
 
 
+# -- carrying data between computers ----------------------------------------
+#
+# One .json file holds everything the game has learned: hints, marks, scores,
+# the sections list and every quiz answer. Settings stay behind -- they say
+# where this computer keeps its photos, which means nothing on another one.
+
+EXPORT_FILES = ("hints.json", "difficult.json", "scores.json", "sections.json")
+EXPORT_LOG = "quiz-log.jsonl"
+
+
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _read_log(path):
+    entries = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(entry, dict):
+                    entries.append(entry)
+    except OSError:
+        pass
+    return entries
+
+
+def export_data(path):
+    """Write everything to `path`. Returns the bundle written."""
+    import socket
+    from datetime import datetime
+
+    d = settings_dir()
+    bundle = {
+        "name_game_export": 1,
+        "exported": datetime.now().isoformat(timespec="seconds"),
+        "from": socket.gethostname(),
+        "files": {name: _read_json(os.path.join(d, name)) for name in EXPORT_FILES},
+        "quiz_log": _read_log(os.path.join(d, EXPORT_LOG)),
+    }
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(bundle, fh, indent=1, sort_keys=True)
+    return bundle
+
+
+def read_export(path):
+    """The bundle at `path`, or ValueError if it is not one of ours."""
+    with open(path, encoding="utf-8") as fh:
+        bundle = json.load(fh)
+    if not isinstance(bundle, dict) or bundle.get("name_game_export") != 1:
+        raise ValueError("This is not a Name Game data file.")
+    bundle.setdefault("files", {})
+    bundle.setdefault("quiz_log", [])
+    return bundle
+
+
+def _same_answer(entry):
+    """An answer's identity, leaving out its round: rounds are renumbered when
+    logs are added together, and a second import of the same file must still
+    recognise what it already brought in."""
+    return json.dumps({k: v for k, v in entry.items() if k != "round"}, sort_keys=True)
+
+
+def _renumber_rounds(groups):
+    """Number rounds 1, 2, 3 ... in the order they were played.
+
+    Every computer counts its own rounds from 1, so two logs added together
+    both have a round 1. Recency is measured in rounds, so they are put back
+    in time order: each group is one round from one source, placed by its
+    first answer.
+    """
+    order = sorted(groups, key=lambda g: min(e.get("at", "") for e in groups[g]))
+    entries = []
+    for number, g in enumerate(order, start=1):
+        for e in groups[g]:
+            entries.append({**e, "round": number})
+    return sorted(entries, key=lambda e: (e.get("at", ""), e.get("round", 0)))
+
+
+def import_data(bundle, replace):
+    """Bring a bundle in, replacing this computer's data or adding to it.
+
+    Adding: hints, marks and sections are joined, the imported side winning
+    where both have the same face; scores keep the better best streak per
+    class; quiz answers from both are kept, a repeat import adding nothing.
+    Whatever is replaced or added to is first copied aside as .before-import.
+    """
+    d = settings_dir()
+    os.makedirs(d, exist_ok=True)
+    for name in EXPORT_FILES + (EXPORT_LOG,):
+        path = os.path.join(d, name)
+        if os.path.exists(path):
+            shutil.copy2(path, path + ".before-import")
+
+    for name in EXPORT_FILES:
+        new = bundle["files"].get(name) or {}
+        if not isinstance(new, dict):
+            new = {}
+        path = os.path.join(d, name)
+        old = {} if replace else _read_json(path)
+        if name == "scores.json":
+            merged = dict(old)
+            for label, score in new.items():
+                had = merged.get(label)
+                if isinstance(had, dict) and isinstance(score, dict):
+                    score = {**had, **score,
+                             "best": max(had.get("best", 0), score.get("best", 0))}
+                merged[label] = score
+        else:
+            merged = {**old, **new}
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(merged, fh, indent=2, sort_keys=True)
+
+    imported = [e for e in bundle["quiz_log"] if isinstance(e, dict)]
+    log_path = os.path.join(d, EXPORT_LOG)
+    if replace:
+        entries = imported
+    else:
+        mine = _read_log(log_path)
+        seen = {_same_answer(e) for e in mine}
+        groups = {}
+        for e in mine:
+            groups.setdefault(("here", e.get("round", 0)), []).append(e)
+        for e in imported:
+            if _same_answer(e) not in seen:
+                groups.setdefault(("import", e.get("round", 0)), []).append(e)
+        entries = _renumber_rounds(groups)
+    with open(log_path, "w", encoding="utf-8") as fh:
+        fh.write("".join(json.dumps(e, sort_keys=True) + "\n" for e in entries))
+
+
 def keep_data_with_app(on, copy_over=False):
     """Switch where the data lives. With `copy_over`, bring the current files.
 
