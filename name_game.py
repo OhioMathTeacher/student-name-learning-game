@@ -700,6 +700,7 @@ class NameGame:
 
         self.mode = tk.StringVar(value="quiz")
         self.class_var = tk.StringVar(value="")
+        self.data_var = tk.StringVar(value="home")
         self._build_menu()
         self._bind_keys()
 
@@ -783,6 +784,45 @@ class NameGame:
         menu.add_cascade(label="Open a roster in the browser", menu=self.roster_menu)
         menu.add_command(label="Where photos come from\u2026",
                          command=lambda: self.show("welcome"))
+        menu.add_separator()
+        menu.add_command(label="Keep my data:", state=tk.DISABLED)
+        menu.add_command(label="    " + _short_path(roster.settings_dir()), state=tk.DISABLED)
+        self.data_var.set("app" if roster.keeps_data_with_app() else "home")
+        menu.add_radiobutton(label="On this computer", value="home",
+                             variable=self.data_var, command=self.switch_data)
+        menu.add_radiobutton(label="With the app (travels on the drive)", value="app",
+                             variable=self.data_var, command=self.switch_data,
+                             state=tk.NORMAL if roster.app_data_dir() else tk.DISABLED)
+
+    def switch_data(self):
+        """Move where hints, marks, scores and the quiz log are kept.
+
+        Asks whether to bring the current files along, because switching
+        without them looks like losing everything, and copying over the top
+        of the other side's files would actually lose them.
+        """
+        on = self.data_var.get() == "app"
+        if on == roster.keeps_data_with_app():
+            return
+        target = roster.app_data_dir() if on else roster.home_data_dir()
+        answer = messagebox.askyesnocancel(
+            "Name Game",
+            "Bring your current hints, marks, scores and quiz log along to\n\n"
+            f"    {target}\n\n"
+            "Yes: copy them there. Files already there are kept, renamed\n"
+            "with .before-switch on the end.\n"
+            "No: switch, and use whatever is already there.\n"
+            "Cancel: leave things as they are.")
+        if answer is None:
+            self.refresh_setup_menu()
+            return
+        try:
+            roster.keep_data_with_app(on, copy_over=answer)
+        except OSError as exc:
+            messagebox.showerror("Name Game", f"Could not switch.\n\n{exc}")
+        self.study.show()
+        self.study.refresh_streaks()
+        self.refresh_setup_menu()
 
     def find_photos(self):
         """Look at whatever is mounted now, rather than trusting the memory.

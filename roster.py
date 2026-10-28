@@ -180,8 +180,79 @@ def in_class(students, label):
 
 # -- where the folder is ----------------------------------------------------
 
-def settings_dir():
+MARKER = "KEEP-DATA-HERE.txt"
+
+
+def home_data_dir():
     return os.path.join(os.path.expanduser("~"), ".student_name_game")
+
+
+def settings_dir():
+    """Where hints, marks, scores, settings and the quiz log live.
+
+    The home folder, unless the app-data folder beside the app holds MARKER.
+    The choice is kept beside the app rather than in the home folder because
+    it has to be read before the home folder is: on a lab PC the drive has
+    never met, a choice saved at home would not be there to say "use the
+    drive".
+    """
+    spare = app_data_dir()
+    if spare and os.path.isfile(os.path.join(spare, MARKER)):
+        return spare
+    return home_data_dir()
+
+
+def keeps_data_with_app():
+    return settings_dir() != home_data_dir()
+
+
+def app_data_dir():
+    """The app-data folder that travels beside this copy, or None.
+
+    Beside the Python files on the drive, or inside the name-game folder when
+    the app is an exe at the top of the drive. An installed copy run from its
+    git clone has none, and none is made for it: student data does not belong
+    in a repository.
+    """
+    base = app_dir()
+    for spare in (os.path.join(base, "app-data"),
+                  os.path.join(base, "name-game", "app-data")):
+        if os.path.isdir(spare):
+            return spare
+    return None
+
+
+def keep_data_with_app(on, copy_over=False):
+    """Switch where the data lives. With `copy_over`, bring the current files.
+
+    Copying never overwrites silently: a file already at the destination is
+    renamed with a .before-switch suffix first, so either side can be put back.
+    """
+    spare = app_data_dir()
+    if spare is None:
+        raise OSError("This copy has no app-data folder beside it.")
+    source = settings_dir()
+    target = spare if on else home_data_dir()
+    if source == target:
+        return
+    if copy_over and os.path.isdir(source):
+        os.makedirs(target, exist_ok=True)
+        for name in os.listdir(source):
+            if not (name.endswith(".json") or name.endswith(".jsonl")):
+                continue
+            dest = os.path.join(target, name)
+            if os.path.exists(dest):
+                os.replace(dest, dest + ".before-switch")
+            shutil.copy2(os.path.join(source, name), dest)
+    marker = os.path.join(spare, MARKER)
+    if on:
+        with open(marker, "w", encoding="utf-8") as fh:
+            fh.write("Name Game keeps its hints, marks, scores, settings and quiz\n"
+                     "log in this folder, on whatever computer it runs on.\n"
+                     "Delete this file (or use Setup > Keep my data) to keep them\n"
+                     "in each computer's home folder instead.\n")
+    elif os.path.exists(marker):
+        os.remove(marker)
 
 
 def config_path():
@@ -209,14 +280,10 @@ def restore_settings():
     it. Never overwrites: a machine that already has hints on it has better
     ones than the copy travelling on the drive.
     """
-    if os.path.isdir(settings_dir()):
+    if keeps_data_with_app() or os.path.isdir(settings_dir()):
         return
-    base = app_dir()
-    for spare in (os.path.join(base, "app-data"),
-                  os.path.join(base, "name-game", "app-data")):
-        if os.path.isdir(spare):
-            break
-    else:
+    spare = app_data_dir()
+    if spare is None:
         return
     os.makedirs(settings_dir(), exist_ok=True)
     for name in os.listdir(spare):

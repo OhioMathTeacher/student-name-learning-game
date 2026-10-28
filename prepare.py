@@ -376,7 +376,7 @@ def roster_url(term, crn):
 
 
 def _sections_path():
-    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    d = roster.settings_dir()
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "sections.json")
 

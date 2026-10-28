@@ -213,6 +213,12 @@ def photo(path, box=PHOTO_BOX, bg=SURFACE):
     return ImageTk.PhotoImage(mat)
 
 
+def _data_dir():
+    """The one place the data folder is decided: roster.settings_dir."""
+    import roster
+    return roster.settings_dir()
+
+
 # One window size for both modes, so switching between them does not resize.
 WINDOW_W = 960
 WINDOW_H = 1040
@@ -220,7 +226,7 @@ WINDOW_H = 1040
 
 def hints_path():
     import os
-    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    d = _data_dir()
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "hints.json")
 
@@ -260,7 +266,7 @@ def save_hint(key, text):
 
 def difficulty_path():
     import os
-    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    d = _data_dir()
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "difficult.json")
 
@@ -331,7 +337,7 @@ POINTS = {"correct": 0, "slow": 0.5, "hint": 0.5, "miss": 1, "skip": 1}
 
 def log_path():
     import os
-    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    d = _data_dir()
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "quiz-log.jsonl")
 
@@ -433,7 +439,7 @@ def fit_window(root, min_w=None, min_h=None):
 
 def _scores_path():
     import os
-    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    d = _data_dir()
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "scores.json")
 
