@@ -258,6 +258,51 @@ def save_hint(key, text):
     return hints
 
 
+def difficulty_path():
+    import os
+    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "difficult.json")
+
+
+def load_difficulty():
+    """How often each hard face comes up in a quiz round: 2 or 3, by filename stem.
+
+    A face not listed comes up once. Kept beside hints.json and keyed the same
+    way, so a mark follows the photo, not its place in the class.
+    """
+    import json
+    import os
+
+    p = difficulty_path()
+    if not os.path.exists(p):
+        return {}
+    try:
+        with open(p, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (ValueError, OSError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if v in (2, 3)}
+
+
+def save_difficulty(key, times):
+    import json
+
+    marks = load_difficulty()
+    if times in (2, 3):
+        marks[key] = times
+    else:
+        marks.pop(key, None)
+    try:
+        with open(difficulty_path(), "w", encoding="utf-8") as fh:
+            json.dump(marks, fh, indent=2, sort_keys=True)
+    except OSError:
+        pass
+    return marks
+
+
 def hint_key(filepath):
     """Stable per-student key: the filename stem, e.g. Smith_Alex."""
     import os

@@ -24,6 +24,65 @@ import roster
 import theme
 
 
+class DifficultyBox(tk.Label):
+    """The small box on a photo's top-right corner: blank, 2, 3, then blank.
+
+    The number is how many times that face comes up in a quiz round. Marking
+    one during a quiz counts from the next round, since this one is already
+    dealt.
+    """
+
+    CYCLE = {1: 2, 2: 3, 3: 1}
+
+    def __init__(self, photo_label):
+        super().__init__(photo_label, text="", width=2,
+                         font=theme.font(theme.SIZE_BODY, "bold"),
+                         bg=theme.SURFACE, fg=theme.HINT, cursor="hand2",
+                         highlightthickness=2, highlightbackground=theme.MUTED, bd=0)
+        self.key = None
+        self.place(relx=1.0, x=-10, y=10, anchor="ne")
+        self.bind("<Button-1>", lambda e: self.click())
+
+    def show(self, key):
+        self.key = key
+        times = theme.load_difficulty().get(key, 1) if key else 1
+        self.config(text=str(times) if times > 1 else "",
+                    highlightbackground=theme.HINT if times > 1 else theme.MUTED)
+
+    def click(self):
+        if not self.key:
+            return
+        times = self.CYCLE[theme.load_difficulty().get(self.key, 1)]
+        theme.save_difficulty(self.key, times)
+        self.show(self.key)
+
+
+def deal(students):
+    """A quiz round: everyone once, a face marked 2 or 3 that many times.
+
+    Each copy of a face is dropped somewhere in its own share of the round --
+    the first or second half for a 2, a third each for a 3 -- and kept away
+    from the edges of that share, so copies come up well apart. In a small
+    class two can still land side by side; the last pass pulls the next
+    different face in between them.
+    """
+    marks = theme.load_difficulty()
+    turns = []
+    for s in students:
+        times = marks.get(s["key"], 1)
+        for i in range(times):
+            turns.append(((i + 0.15 + 0.7 * random.random()) / times, s))
+    turns.sort(key=lambda t: t[0])
+    order = [s for _, s in turns]
+    for i in range(1, len(order)):
+        if order[i] is order[i - 1]:
+            for j in range(i + 1, len(order)):
+                if order[j] is not order[i]:
+                    order.insert(i, order.pop(j))
+                    break
+    return order
+
+
 class StudyView(tk.Frame):
     """Walk the roster with names visible, and write a memory hint per face."""
 
@@ -48,6 +107,7 @@ class StudyView(tk.Frame):
         self.photo_label = tk.Label(self, bg=theme.SURFACE, bd=0, relief=tk.FLAT,
                                     highlightthickness=1, highlightbackground=theme.BORDER)
         self.photo_label.pack(pady=(28, 0))
+        self.difficulty = DifficultyBox(self.photo_label)
 
         self.name_label = tk.Label(self, text="", font=theme.font(theme.SIZE_FEATURE, "bold"),
                                    bg=theme.BG, fg=theme.TEXT)
@@ -131,6 +191,7 @@ class StudyView(tk.Frame):
         if not students:
             self.name_label.config(text="No photos loaded")
             self.counter_label.config(text="")
+            self.difficulty.show(None)
             return
         self.index %= len(students)
         student = students[self.index]
@@ -142,6 +203,7 @@ class StudyView(tk.Frame):
         except Exception as exc:                      # noqa: BLE001 - show, don't crash
             self.photo_label.config(image="", text=f"Could not open image\n{exc}")
         self.name_label.config(text=student["name"])
+        self.difficulty.show(student["key"])
         self.hint_entry.delete(0, tk.END)
         self.hint_entry.insert(0, theme.load_hints().get(student["key"], ""))
         self.hint_status.config(text="")
@@ -219,6 +281,8 @@ class QuizView(tk.Frame):
         self.hint_level = 0
         self.game_over = False
         self.skips_left = 3
+        self.answered = False
+        self.round_total = 0
         self.restart_btn = None
         self._build()
 
@@ -235,6 +299,7 @@ class QuizView(tk.Frame):
         self.photo_label = tk.Label(self, bg=theme.SURFACE, bd=0, relief=tk.FLAT,
                                     highlightthickness=1, highlightbackground=theme.BORDER)
         self.photo_label.pack(pady=(28, 18))
+        self.difficulty = DifficultyBox(self.photo_label)
 
         theme.label(self, "Name", size=theme.SIZE_BODY, fg=theme.MUTED).pack()
         self.entry = tk.Entry(
@@ -267,7 +332,11 @@ class QuizView(tk.Frame):
         self.start()
 
     def on_show(self):
-        if not self.remaining and not self.game_over:
+        # A round nobody has touched yet is dealt again, so faces marked in
+        # Study since it was dealt come up as often as their box says.
+        untouched = (len(self.remaining) == self.round_total
+                     and self.skips_left == 3 and not self.answered)
+        if not self.game_over and (not self.remaining or untouched):
             self.start()
         self.entry.focus_set()
 
@@ -281,8 +350,8 @@ class QuizView(tk.Frame):
     def start(self):
         if not self.app.students:
             return
-        self.remaining = self.app.students.copy()
-        random.shuffle(self.remaining)
+        self.remaining = deal(self.app.students)
+        self.round_total = len(self.remaining)
         self.perfect = []
         self.streak = 0
         self.longest = 0
@@ -305,6 +374,7 @@ class QuizView(tk.Frame):
             self.finish()
             return
         self.current = self.remaining[0]
+        self.difficulty.show(self.current["key"])
         self.answered = False
         self.used_hint = False
         self.hint_level = 0
@@ -399,13 +469,14 @@ class QuizView(tk.Frame):
         if self.game_over:
             return
         self.game_over = True
-        total = len(self.app.students)
+        total = self.round_total
+        people = len(self.app.students)
         done = total - len(self.remaining)
         if not self.remaining and len(self.perfect) == total:
-            text, colour = (f"Perfect game\n\nAll {total} people, no hints used."
+            text, colour = (f"Perfect game\n\nAll {people} people, no hints used."
                             f"\nLongest streak {self.longest}", theme.OK)
         elif not self.remaining:
-            text, colour = (f"Finished\n\nAll {total} people."
+            text, colour = (f"Finished\n\nAll {people} people."
                             f"\nWithout hints {len(self.perfect)}"
                             f"\nLongest streak {self.longest}", theme.ACCENT)
         else:
@@ -425,7 +496,7 @@ class QuizView(tk.Frame):
         self.update_stats()
 
     def update_stats(self):
-        total = len(self.app.students)
+        total = self.round_total
         done = total - len(self.remaining)
         all_time = theme.load_scores().get(self.app.section, {}).get("best", 0)
         self.streak_label.config(
