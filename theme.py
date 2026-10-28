@@ -189,10 +189,11 @@ def _imaging():
             f"({exc})") from exc
 
 
-PHOTO_BOX = 320  # every photo renders into a square of exactly this size
+PHOTO_BOX = 320  # every photo renders into a square of exactly this size;
+                 # scaled to the display by scale_to_display
 
 
-def photo(path, box=PHOTO_BOX, bg=SURFACE):
+def photo(path, box=None, bg=SURFACE):
     """Render any image into a fixed square so the layout never shifts.
 
     The source photos are a mix of sizes (128 to 325 px square in practice) and
@@ -201,6 +202,7 @@ def photo(path, box=PHOTO_BOX, bg=SURFACE):
     scaled to fit -- up or down -- and centred on a mat of the exact box size.
     """
     Image, ImageTk = _imaging()
+    box = box or PHOTO_BOX
 
     img = Image.open(path).convert("RGB")
     scale = min(box / img.width, box / img.height)
@@ -220,8 +222,27 @@ def _data_dir():
 
 
 # One window size for both modes, so switching between them does not resize.
+# These are sizes at 96 dpi; scale_to_display grows them with the display.
 WINDOW_W = 960
 WINDOW_H = 1040
+
+
+def scale_to_display(root):
+    """Grow the window and the photos by the same factor the text grows by.
+
+    Text is sized in points, so a high-density screen draws it larger; the
+    window and photos were fixed in pixels and did not follow, which left big
+    words crammed into a small window on a 2x screen. At 96 dpi -- a typical
+    lab PC -- the factor is 1 and nothing changes. The factor stops where the
+    window would no longer fit on the screen.
+    """
+    global PHOTO_BOX, WINDOW_W, WINDOW_H
+    k = root.winfo_fpixels("1p") / (96 / 72)
+    k = min(k, (root.winfo_screenheight() - 120) / WINDOW_H,
+            (root.winfo_screenwidth() - 80) / WINDOW_W)
+    k = max(k, 1.0)
+    PHOTO_BOX, WINDOW_W, WINDOW_H = (int(PHOTO_BOX * k), int(WINDOW_W * k),
+                                     int(WINDOW_H * k))
 
 
 def hints_path():

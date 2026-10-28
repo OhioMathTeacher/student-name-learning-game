@@ -719,6 +719,7 @@ def _short_path(path, limit=46):
 class NameGame:
     def __init__(self, root):
         self.root = root
+        theme.scale_to_display(root)
         self.root.title("Name Game")
         self.root.configure(bg=theme.BG)
         self.students = []          # the class in front of you
