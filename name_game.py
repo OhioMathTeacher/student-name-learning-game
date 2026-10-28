@@ -15,6 +15,7 @@ import os
 import random
 import subprocess
 import sys
+import time
 import webbrowser
 import tkinter as tk
 from tkinter import messagebox
@@ -27,7 +28,8 @@ import theme
 class DifficultyBox(tk.Label):
     """The small box on a photo's top-right corner: blank, 2, 3, then blank.
 
-    The number is how many times that face comes up in a quiz round. Marking
+    The number is how many times that face comes up in a quiz round, at least:
+    the quiz can raise it from how the face has gone, never lower it. Marking
     one during a quiz counts from the next round, since this one is already
     dealt.
     """
@@ -57,8 +59,20 @@ class DifficultyBox(tk.Label):
         self.show(self.key)
 
 
+def copies(key, marks, log):
+    """How many times a face comes up in a round: 1, 2 or 3.
+
+    From its index I, 1 + floor(3I): below 1/3 once, below 2/3 twice, above
+    that three times. A face with no tries yet sits at 1/2, so a new class
+    gets two looks at everyone until there is something to go on. The box on
+    the photo is a floor under that.
+    """
+    from_index = 1 + min(2, int(3 * theme.difficulty_index(key, log)))
+    return max(marks.get(key, 1), from_index)
+
+
 def deal(students):
-    """A quiz round: everyone once, a face marked 2 or 3 that many times.
+    """A quiz round: every face as many times as `copies` says.
 
     Each copy of a face is dropped somewhere in its own share of the round --
     the first or second half for a 2, a third each for a 3 -- and kept away
@@ -67,9 +81,10 @@ def deal(students):
     different face in between them.
     """
     marks = theme.load_difficulty()
+    log = theme.load_log()
     turns = []
     for s in students:
-        times = marks.get(s["key"], 1)
+        times = copies(s["key"], marks, log)
         for i in range(times):
             turns.append(((i + 0.15 + 0.7 * random.random()) / times, s))
     turns.sort(key=lambda t: t[0])
@@ -283,6 +298,10 @@ class QuizView(tk.Frame):
         self.skips_left = 3
         self.answered = False
         self.round_total = 0
+        self.shown_at = 0.0
+        self.first_key = None       # seconds from photo to first keystroke
+        self.round_no = None        # set by the first answer of a round
+        self.turn = 0               # answers given this round, skips included
         self.restart_btn = None
         self._build()
 
@@ -309,6 +328,7 @@ class QuizView(tk.Frame):
             highlightbackground=theme.BORDER, highlightcolor=theme.ACCENT
         )
         self.entry.pack(ipady=8, pady=(6, 18))
+        self.entry.bind("<KeyPress>", self._first_key, add="+")
 
         controls = tk.Frame(self, bg=theme.BG)
         controls.pack()
@@ -351,6 +371,8 @@ class QuizView(tk.Frame):
         if not self.app.students:
             return
         self.remaining = deal(self.app.students)
+        self.round_no = None
+        self.turn = 0
         self.round_total = len(self.remaining)
         self.perfect = []
         self.streak = 0
@@ -378,6 +400,8 @@ class QuizView(tk.Frame):
         self.answered = False
         self.used_hint = False
         self.hint_level = 0
+        self.shown_at = time.monotonic()
+        self.first_key = None
         try:
             photo = theme.photo(self.current["path"])
             self.photo_label.config(image=photo, text="")
@@ -388,6 +412,25 @@ class QuizView(tk.Frame):
         self.feedback.config(text="", fg=theme.TEXT)
         self.hint_btn.config(state="normal")
         self.entry.focus_set()
+
+    def record(self, result, typed=None):
+        """Log this answer. A round takes its number from its first answer;
+        a round dealt and never played (at launch, or re-dealt on the way into
+        Quiz) would otherwise age every face's history for nothing."""
+        if self.round_no is None:
+            self.round_no = theme.last_round() + 1
+        self.turn += 1
+        theme.log_answer(
+            key=self.current["key"], label=self.current["label"],
+            round=self.round_no, turn=self.turn,
+            of=self.round_total, result=result,
+            seconds=None if self.first_key is None else round(self.first_key, 2),
+            typed=typed)
+
+    def _first_key(self, event):
+        """Time to the first letter typed: recognising the face, not typing it."""
+        if self.first_key is None and event.char and event.char.isprintable():
+            self.first_key = time.monotonic() - self.shown_at
 
     def close_enough(self, answer, correct):
         given, want = answer.split(), correct.split()
@@ -407,6 +450,8 @@ class QuizView(tk.Frame):
         correct = self.current["name"].lower()
         self.answered = True
         if answer == correct or self.close_enough(answer, correct):
+            self.record("hint" if self.used_hint
+                        else "slow" if theme.is_slow(self.first_key) else "correct")
             self.streak += 1
             self.longest = max(self.longest, self.streak)
             # Bank it now: quitting mid-run used to lose the whole streak.
@@ -419,6 +464,7 @@ class QuizView(tk.Frame):
             self.update_stats()
             self.after(1200, self.next_student)
         else:
+            self.record("miss", typed=self.entry.get().strip())
             self.streak = 0
             self.feedback.config(text=f"Not quite — that was {self.current['name']}",
                                  fg=theme.STOP)
@@ -450,6 +496,7 @@ class QuizView(tk.Frame):
             return
         self.answered = True
         self.streak = 0
+        self.record("skip")
         name = self.current["name"]
         if self.skips_left > 0:
             self.skips_left -= 1

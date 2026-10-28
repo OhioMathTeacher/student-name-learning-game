@@ -303,6 +303,102 @@ def save_difficulty(key, times):
     return marks
 
 
+# -- how hard each face is, from the quiz -----------------------------------
+#
+# Every quiz answer is one line in quiz-log.jsonl, appended and never trimmed,
+# so the record can be read back later for patterns -- which faces stay hard,
+# whether a break costs more than a face does, what you type when you miss.
+# Everything below is computed from that one file; nothing else holds a copy.
+#
+# Each answer scores a try: 1 for a miss or a skip, 1/2 for a correct answer
+# that was slow or needed a hint, 0 for a quick clean one. A face's index is a
+# smoothed, recency-weighted miss rate,
+#
+#     I = (sum of w * points + 1) / (sum of w + 2),   w = DECAY ** rounds ago,
+#
+# which starts at 1/2 for a face with no tries and moves toward how that face
+# has actually gone lately. "Slow" is measured against your own median time to
+# first keystroke, so a slow day or an unfamiliar keyboard does not make every
+# face look hard.
+
+DECAY = 0.8          # a try five rounds ago counts about a third of today's
+SLOW = 1.5           # slower than this many times your median is a half miss
+MIN_TIMES = 10       # below this many timed answers, nothing counts as slow
+MEDIAN_OF = 200      # the median is over this many most recent clean answers
+
+POINTS = {"correct": 0, "slow": 0.5, "hint": 0.5, "miss": 1, "skip": 1}
+
+
+def log_path():
+    import os
+    d = os.path.join(os.path.expanduser("~"), ".student_name_game")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "quiz-log.jsonl")
+
+
+def load_log():
+    """Every answer so far, oldest first. A damaged line is skipped, not fatal."""
+    import json
+
+    entries = []
+    try:
+        with open(log_path(), encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(entry, dict) and entry.get("result") in POINTS:
+                    entries.append(entry)
+    except OSError:
+        pass
+    return entries
+
+
+def last_round(log=None):
+    log = load_log() if log is None else log
+    return max((e.get("round", 0) for e in log), default=0)
+
+
+def clean_times(log=None):
+    log = load_log() if log is None else log
+    times = [e["seconds"] for e in log
+             if e["result"] in ("correct", "slow") and e.get("seconds") is not None]
+    return times[-MEDIAN_OF:]
+
+
+def is_slow(seconds, log=None):
+    times = sorted(clean_times(log))
+    if seconds is None or len(times) < MIN_TIMES:
+        return False
+    return seconds > SLOW * times[len(times) // 2]
+
+
+def log_answer(**entry):
+    """Append one answer. Written whole, one line, so a crash loses at most it."""
+    import json
+    from datetime import datetime
+
+    entry = {"at": datetime.now().isoformat(timespec="seconds"), **entry}
+    try:
+        with open(log_path(), "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
+def difficulty_index(key, log=None):
+    log = load_log() if log is None else log
+    now = last_round(log)
+    num, den = 1.0, 2.0
+    for e in log:
+        if e.get("key") == key:
+            w = DECAY ** max(0, now - e.get("round", now))
+            num += w * POINTS[e["result"]]
+            den += w
+    return num / den
+
+
 def hint_key(filepath):
     """Stable per-student key: the filename stem, e.g. Smith_Alex."""
     import os
